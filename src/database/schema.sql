@@ -1,5 +1,5 @@
 -- ============================================================
--- ROLEZIM — Schema Postgres (atualizado)
+-- SHARE YOUR ROLE
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

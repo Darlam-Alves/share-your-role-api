@@ -1,0 +1,11 @@
+{
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.5.0",
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1",
+    "prisma": "^7.5.0"
+  }
+}

@@ -16,14 +16,17 @@ CREATE TYPE seller_status    AS ENUM ('open', 'sold', 'cancelled');
 -- users
 -- ------------------------------------------------------------
 CREATE TABLE users (
-  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name                 TEXT        NOT NULL,
-  email_personal       TEXT        UNIQUE,
-  email_institutional  TEXT        UNIQUE,
-  phone                TEXT        NOT NULL,
-  password_hash        TEXT        NOT NULL,
-  role                 user_role   NOT NULL DEFAULT 'public',
-  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  id                             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name                           TEXT        NOT NULL,
+  email_personal                 TEXT        UNIQUE,
+  email_institutional            TEXT        UNIQUE,
+  phone                          TEXT        NOT NULL,
+  password_hash                  TEXT        NOT NULL,
+  role                           user_role   NOT NULL DEFAULT 'public',
+  created_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  email_institutional_verified   BOOLEAN     NOT NULL DEFAULT false,
+  verification_token             TEXT,
+  verification_token_expires_at  TIMESTAMPTZ,
 
   CONSTRAINT chk_at_least_one_email
     CHECK (email_personal IS NOT NULL OR email_institutional IS NOT NULL)

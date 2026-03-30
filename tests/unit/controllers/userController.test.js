@@ -39,69 +39,6 @@ describe("userController.createUser", () => {
     jest.restoreAllMocks();
   });
 
-  describe("validação de campos obrigatórios", () => {
-    test("retorna 400 quando name não é enviado", async () => {
-      const req = makeReq({ ...VALID_BODY, name: undefined });
-      const res = makeRes();
-
-      await userController.createUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.any(String) })
-      );
-    });
-
-    test("retorna 400 quando name é string vazia", async () => {
-      const req = makeReq({ ...VALID_BODY, name: "   " });
-      const res = makeRes();
-
-      await userController.createUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    test("retorna 400 quando phone não é enviado", async () => {
-      const req = makeReq({ ...VALID_BODY, phone: undefined });
-      const res = makeRes();
-
-      await userController.createUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    test("retorna 400 quando password não é enviado", async () => {
-      const req = makeReq({ ...VALID_BODY, password: undefined });
-      const res = makeRes();
-
-      await userController.createUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    test("retorna 400 quando nenhum email é enviado", async () => {
-      const req = makeReq({
-        name: "Ana Silva",
-        phone: "11999999999",
-        password: "senha123",
-      });
-      const res = makeRes();
-
-      await userController.createUser(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-    });
-
-    test("não chama o service quando a validação falha", async () => {
-      const req = makeReq({ ...VALID_BODY, name: undefined });
-      const res = makeRes();
-
-      await userController.createUser(req, res);
-
-      expect(userService.createUser).not.toHaveBeenCalled();
-    });
-  });
-
   describe("fluxo de sucesso", () => {
     test("retorna 201 com os dados do usuário criado", async () => {
       const req = makeReq(VALID_BODY);
@@ -189,6 +126,10 @@ describe("userController.createUser", () => {
 
   describe("edge cases", () => {
     test("não quebra quando request.body é undefined", async () => {
+      const error = new Error("Campos obrigatorios: name, phone e password.");
+      error.statusCode = 400;
+      userService.createUser.mockRejectedValue(error);
+
       const req = makeReq(undefined);
       const res = makeRes();
 

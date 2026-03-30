@@ -175,6 +175,40 @@ describe("userService.createUser", () => {
         expect.objectContaining({ emailPersonal: "ana@gmail.com" })
       );
     });
+
+    test("converte email_personal para lowercase antes de salvar", async () => {
+      await userService.createUser({
+        ...VALID_PAYLOAD,
+        email_personal: "ANA@GMAIL.COM",
+      });
+
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ emailPersonal: "ana@gmail.com" })
+      );
+    });
+
+    test("converte email_institutional para lowercase antes de salvar", async () => {
+      await userService.createUser({
+        ...VALID_PAYLOAD,
+        email_institutional: "ANA@UNICAMP.BR",
+      });
+
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ emailInstitutional: "ana@unicamp.br" })
+      );
+    });
+
+    test("e-mails com capitalização diferente são tratados como duplicata", async () => {
+      userRepository.findByEmails.mockResolvedValue({
+        id: "uuid-existente",
+        email_personal: "ana@gmail.com",
+        email_institutional: null,
+      });
+
+      await expect(
+        userService.createUser({ ...VALID_PAYLOAD, email_personal: "ANA@GMAIL.COM" })
+      ).rejects.toMatchObject({ statusCode: 409 });
+    });
   });
 
   describe("retorno", () => {

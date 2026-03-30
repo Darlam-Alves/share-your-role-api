@@ -22,8 +22,8 @@ async function createUser(payload) {
   const name = toOptionalTrimmedString(payload.name);
   const phone = toOptionalTrimmedString(payload.phone);
   const password = toOptionalTrimmedString(payload.password);
-  const emailPersonal = toOptionalTrimmedString(payload.email_personal);
-  const emailInstitutional = toOptionalTrimmedString(payload.email_institutional);
+  const emailPersonal = toOptionalTrimmedString(payload.email_personal)?.toLowerCase();
+  const emailInstitutional = toOptionalTrimmedString(payload.email_institutional)?.toLowerCase();
 
   if (!name || !phone || !password) {
     throw buildHttpError(400, "Campos obrigatorios: name, phone e password.");

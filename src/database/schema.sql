@@ -18,8 +18,8 @@ CREATE TYPE seller_status    AS ENUM ('open', 'sold', 'cancelled');
 CREATE TABLE users (
   id                             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   name                           TEXT        NOT NULL,
-  email_personal                 TEXT        UNIQUE,
-  email_institutional            TEXT        UNIQUE,
+  email_personal                 TEXT,
+  email_institutional            TEXT,
   phone                          TEXT        NOT NULL,
   password_hash                  TEXT        NOT NULL,
   role                           user_role   NOT NULL DEFAULT 'public',
@@ -31,6 +31,13 @@ CREATE TABLE users (
   CONSTRAINT chk_at_least_one_email
     CHECK (email_personal IS NOT NULL OR email_institutional IS NOT NULL)
 );
+
+-- Índices únicos case-insensitive — impedem duplicatas como ANA@GMAIL.COM e ana@gmail.com
+CREATE UNIQUE INDEX users_email_personal_lower_idx
+  ON users (LOWER(email_personal)) WHERE email_personal IS NOT NULL;
+
+CREATE UNIQUE INDEX users_email_institutional_lower_idx
+  ON users (LOWER(email_institutional)) WHERE email_institutional IS NOT NULL;
 
 -- ------------------------------------------------------------
 -- republics

@@ -168,11 +168,11 @@ INSERT INTO seller_reviews (reviewer_user_id, seller_id, rating, comment) VALUES
 -- WHERE el.release_at IS NULL OR el.release_at <= now();
 
 -- Lotes ativos por evento
--- SELECT e.name, el.lot_number, el.price, el.start_date
--- FROM event_lots el
--- JOIN events e ON e.id = el.event_id
--- WHERE el.active = true
--- ORDER BY el.price;
+SELECT e.name, el.lot_number, el.price, el.start_date
+FROM event_lots el
+JOIN events e ON e.id = el.event_id
+WHERE el.active = true
+ORDER BY el.price;
 
 -- Menor preço de revenda por evento
 -- SELECT e.name, MIN(s.price) AS menor_preco
@@ -192,7 +192,7 @@ INSERT INTO seller_reviews (reviewer_user_id, seller_id, rating, comment) VALUES
 -- ORDER BY media DESC NULLS LAST;
 
 -- Membros de uma república com seus papéis
--- SELECT u.name, u.email_institutional, rm.role
--- FROM republic_members rm
--- JOIN users u ON u.id = rm.user_id
--- WHERE rm.republic_id = '10000000-0000-0000-0000-000000000001';
+SELECT u.name, u.email_institutional, rm.role
+FROM republic_members rm
+JOIN users u ON u.id = rm.user_id
+WHERE rm.republic_id = '10000000-0000-0000-0000-000000000001';

@@ -1,0 +1,27 @@
+{
+  "name": "share-your-role-api",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration",
+    "test:all": "jest",
+    "test:coverage": "jest --selectProjects unit --coverage"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "pg": "^8.20.0",
+    "prisma": "^7.5.0"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}

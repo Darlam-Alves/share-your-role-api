@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum user_role {
+  public
+  institutional
+  admin
+}
+
+model users {
+  id                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                            String
+  email_personal                  String?   @unique
+  email_institutional             String?   @unique
+  phone                           String
+  password_hash                   String
+  role                            user_role @default(public)
+  created_at                      DateTime  @default(now()) @db.Timestamptz(6)
+  email_institutional_verified   Boolean   @default(false)
+  verification_token             String?
+  verification_token_expires_at  DateTime? @db.Timestamptz(6)
+
+  @@map("users")
+}

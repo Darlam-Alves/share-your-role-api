@@ -1,0 +1,46 @@
+const eventService = require("../services/eventService");
+
+async function createEvent(request, response) {
+  const {
+    name,
+    description,
+    date,
+    ended_at,
+    visibility_type,
+    instagram,
+    ticket_platform,
+    ticket_url,
+    created_by_user_id, // TODO: replace with req.user.id when JWT middleware is implemented
+    created_by_republic_id,
+    location,
+    promoters,
+  } = request.body || {};
+
+  try {
+    const event = await eventService.createEvent({
+      name,
+      description,
+      date,
+      ended_at,
+      visibility_type,
+      instagram,
+      ticket_platform,
+      ticket_url,
+      created_by_user_id,
+      created_by_republic_id,
+      location,
+      promoters,
+    });
+
+    return response.status(201).json(event);
+  } catch (error) {
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({ message: error.message });
+    }
+
+    console.error("Erro ao criar evento:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
+module.exports = { createEvent };

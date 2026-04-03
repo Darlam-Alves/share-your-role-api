@@ -3,8 +3,8 @@ const eventService = require("../../../src/services/eventService");
 
 jest.mock("../../../src/services/eventService");
 
-function makeReq(body = {}) {
-  return { body };
+function makeReq({ body = {}, query = {} } = {}) {
+  return { body, query };
 }
 
 function makeRes() {
@@ -50,7 +50,7 @@ describe("eventController.createEvent", () => {
 
   describe("fluxo de sucesso", () => {
     test("retorna 201 com os dados do evento criado", async () => {
-      const req = makeReq(VALID_BODY);
+      const req = makeReq({ body: VALID_BODY });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -60,7 +60,7 @@ describe("eventController.createEvent", () => {
     });
 
     test("repassa os campos do body para o service", async () => {
-      const req = makeReq(VALID_BODY);
+      const req = makeReq({ body: VALID_BODY });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -86,7 +86,7 @@ describe("eventController.createEvent", () => {
         location: { latitude: -23.5, longitude: -46.6 },
         promoters: [{ name: "João", whatsapp: "11999999999" }],
       };
-      const req = makeReq(body);
+      const req = makeReq({ body });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -103,7 +103,7 @@ describe("eventController.createEvent", () => {
     });
 
     test("created_by_user_id vem exclusivamente do body", async () => {
-      const req = makeReq({ ...VALID_BODY, created_by_user_id: "uuid-especifico" });
+      const req = makeReq({ body: { ...VALID_BODY, created_by_user_id: "uuid-especifico" } });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -120,7 +120,7 @@ describe("eventController.createEvent", () => {
       error.statusCode = 400;
       eventService.createEvent.mockRejectedValue(error);
 
-      const req = makeReq({});
+      const req = makeReq({ body: {} });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -134,7 +134,7 @@ describe("eventController.createEvent", () => {
       error.statusCode = 403;
       eventService.createEvent.mockRejectedValue(error);
 
-      const req = makeReq(VALID_BODY);
+      const req = makeReq({ body: VALID_BODY });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -145,7 +145,7 @@ describe("eventController.createEvent", () => {
     test("retorna 500 quando o service lança erro sem statusCode", async () => {
       eventService.createEvent.mockRejectedValue(new Error("Connection refused"));
 
-      const req = makeReq(VALID_BODY);
+      const req = makeReq({ body: VALID_BODY });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -161,7 +161,7 @@ describe("eventController.createEvent", () => {
         new Error("senha do banco: postgres123")
       );
 
-      const req = makeReq(VALID_BODY);
+      const req = makeReq({ body: VALID_BODY });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -177,11 +177,88 @@ describe("eventController.createEvent", () => {
       error.statusCode = 400;
       eventService.createEvent.mockRejectedValue(error);
 
-      const req = makeReq(undefined);
+      const req = makeReq();
       const res = makeRes();
 
       await expect(eventController.createEvent(req, res)).resolves.not.toThrow();
       expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+});
+
+describe("eventController.listEvents", () => {
+  const EVENTS_LIST = [
+    {
+      id: "uuid-event-1",
+      name: "Festa da Engenharia",
+      date: new Date("2026-04-08T22:00:00Z"),
+      ended_at: new Date("2026-04-09T04:00:00Z"),
+      visibility_type: "public",
+      location: null,
+    },
+  ];
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    eventService.listEvents.mockResolvedValue(EVENTS_LIST);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("fluxo de sucesso", () => {
+    test("retorna 200 com a lista de eventos", async () => {
+      const req = makeReq({ query: { start_date: "2026-04-03", end_date: "2026-04-09" } });
+      const res = makeRes();
+
+      await eventController.listEvents(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(EVENTS_LIST);
+    });
+
+    test("repassa start_date e end_date para o service", async () => {
+      const req = makeReq({ query: { start_date: "2026-04-03", end_date: "2026-04-09" } });
+      const res = makeRes();
+
+      await eventController.listEvents(req, res);
+
+      expect(eventService.listEvents).toHaveBeenCalledWith({
+        start_date: "2026-04-03",
+        end_date: "2026-04-09",
+      });
+    });
+  });
+
+  describe("propagação de erros do service", () => {
+    test("retorna 400 quando o service lança erro com statusCode 400", async () => {
+      const error = new Error("Parâmetros obrigatórios: start_date, end_date.");
+      error.statusCode = 400;
+      eventService.listEvents.mockRejectedValue(error);
+
+      const req = makeReq({ query: {} });
+      const res = makeRes();
+
+      await eventController.listEvents(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ message: "Parâmetros obrigatórios: start_date, end_date." });
+    });
+
+    test("retorna 500 quando o service lança erro sem statusCode", async () => {
+      eventService.listEvents.mockRejectedValue(new Error("Connection refused"));
+
+      const req = makeReq({ query: { start_date: "2026-04-03", end_date: "2026-04-09" } });
+      const res = makeRes();
+
+      await eventController.listEvents(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.any(String) })
+      );
     });
   });
 });

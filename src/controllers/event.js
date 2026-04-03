@@ -43,4 +43,20 @@ async function createEvent(request, response) {
   }
 }
 
-module.exports = { createEvent };
+async function listEvents(request, response) {
+  const { start_date, end_date } = request.query;
+
+  try {
+    const events = await eventService.listEvents({ start_date, end_date });
+    return response.status(200).json(events);
+  } catch (error) {
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({ message: error.message });
+    }
+
+    console.error("Erro ao listar eventos:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
+module.exports = { createEvent, listEvents };

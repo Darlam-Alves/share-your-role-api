@@ -2,6 +2,7 @@ const eventService = require("../../../src/services/eventService");
 const eventRepository = require("../../../src/models/event");
 const userRepository = require("../../../src/models/user");
 
+
 jest.mock("../../../src/models/event");
 jest.mock("../../../src/models/user");
 
@@ -427,6 +428,167 @@ describe("eventService.createEvent", () => {
         statusCode: 409,
         message: expect.stringContaining("nome"),
       });
+    });
+  });
+});
+
+describe("eventService.listEvents", () => {
+  const VALID_PARAMS = {
+    start_date: "2026-04-03",
+    end_date: "2026-04-09",
+  };
+
+  const makeEvent = (overrides = {}) => ({
+    id: "uuid-event-1",
+    name: "Festa do Republica",
+    description: null,
+    date: new Date("2026-04-08T22:00:00Z"),
+    ended_at: new Date("2026-04-09T04:00:00Z"),
+    visibility_type: "public",
+    instagram: null,
+    ticket_platform: null,
+    ticket_url: null,
+    created_by_user_id: "uuid-user-123",
+    created_by_republic_id: null,
+    created_at: new Date("2026-04-01T00:00:00Z"),
+    event_location: null,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    eventRepository.list.mockResolvedValue([]);
+  });
+
+  describe("validação de parâmetros", () => {
+    test("lança erro 400 quando start_date não é enviado", async () => {
+      await expect(
+        eventService.listEvents({ end_date: "2026-04-09" })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("start_date") });
+    });
+
+    test("lança erro 400 quando end_date não é enviado", async () => {
+      await expect(
+        eventService.listEvents({ start_date: "2026-04-03" })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("end_date") });
+    });
+
+    test("lança erro 400 quando start_date não está no formato YYYY-MM-DD", async () => {
+      await expect(
+        eventService.listEvents({ ...VALID_PARAMS, start_date: "03/04/2026" })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("start_date") });
+    });
+
+    test("lança erro 400 quando end_date não está no formato YYYY-MM-DD", async () => {
+      await expect(
+        eventService.listEvents({ ...VALID_PARAMS, end_date: "09/04/2026" })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("end_date") });
+    });
+
+    test("lança erro 400 quando end_date é anterior a start_date", async () => {
+      await expect(
+        eventService.listEvents({ start_date: "2026-04-09", end_date: "2026-04-03" })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("end_date") });
+    });
+
+    test("aceita parâmetros válidos", async () => {
+      await expect(eventService.listEvents(VALID_PARAMS)).resolves.toBeDefined();
+    });
+  });
+
+  describe("filtro de visibilidade", () => {
+    test("chama o repositório apenas com eventos public", async () => {
+      await eventService.listEvents(VALID_PARAMS);
+
+      expect(eventRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ visibilityTypes: ["public"] })
+      );
+    });
+  });
+
+  describe("lógica de embargo de localização", () => {
+    test("inclui lat/lng quando release_at é null", async () => {
+      eventRepository.list.mockResolvedValue([
+        makeEvent({
+          event_location: {
+            address: "Rua X, 123",
+            latitude: "-22.004612",
+            longitude: "-47.890978",
+            release_at: null,
+          },
+        }),
+      ]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.location.latitude).toBeDefined();
+      expect(event.location.longitude).toBeDefined();
+    });
+
+    test("inclui lat/lng quando release_at já passou", async () => {
+      const pastDate = new Date(Date.now() - 60 * 60 * 1000);
+      eventRepository.list.mockResolvedValue([
+        makeEvent({
+          event_location: {
+            address: "Rua X, 123",
+            latitude: "-22.004612",
+            longitude: "-47.890978",
+            release_at: pastDate,
+          },
+        }),
+      ]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.location.latitude).toBeDefined();
+      expect(event.location.longitude).toBeDefined();
+    });
+
+    test("omite lat/lng quando release_at é no futuro", async () => {
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+      eventRepository.list.mockResolvedValue([
+        makeEvent({
+          event_location: {
+            address: "Rua X, 123",
+            latitude: "-22.004612",
+            longitude: "-47.890978",
+            release_at: futureDate,
+          },
+        }),
+      ]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.location.address).toBe("Rua X, 123");
+      expect(event.location.latitude).toBeUndefined();
+      expect(event.location.longitude).toBeUndefined();
+    });
+
+    test("retorna location null quando evento não tem localização", async () => {
+      eventRepository.list.mockResolvedValue([makeEvent({ event_location: null })]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.location).toBeNull();
+    });
+  });
+
+  describe("retorno", () => {
+    test("retorna lista vazia quando não há eventos no período", async () => {
+      eventRepository.list.mockResolvedValue([]);
+
+      const result = await eventService.listEvents(VALID_PARAMS);
+
+      expect(result).toEqual([]);
+    });
+
+    test("retorna eventos sem o campo event_location no formato original", async () => {
+      eventRepository.list.mockResolvedValue([makeEvent()]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.event_location).toBeUndefined();
+      expect(event.location).toBeNull();
     });
   });
 });

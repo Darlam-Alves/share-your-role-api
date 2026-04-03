@@ -85,14 +85,18 @@ CREATE TABLE events (
   name                     TEXT             NOT NULL,
   description              TEXT,
   date                     TIMESTAMPTZ      NOT NULL,
+  ended_at                 TIMESTAMPTZ      NOT NULL,
   created_by_user_id       UUID             NOT NULL REFERENCES users(id),
   created_by_republic_id   UUID             REFERENCES republics(id),
   ticket_platform          TEXT,
   ticket_url               TEXT,
   instagram                TEXT,
   visibility_type          visibility_type  NOT NULL DEFAULT 'public',
-  created_at               TIMESTAMPTZ      NOT NULL DEFAULT now()
+  created_at               TIMESTAMPTZ      NOT NULL DEFAULT now(),
 );
+
+-- Índice único case-insensitive — impede mesmo nome na mesma data independente de capitalização
+CREATE UNIQUE INDEX events_name_lower_date_idx ON events (LOWER(name), date);
 
 -- ------------------------------------------------------------
 -- event_promoters

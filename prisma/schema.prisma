@@ -12,18 +12,207 @@ enum user_role {
   admin
 }
 
+enum member_role {
+  member
+  admin
+  aggregate
+}
+
+enum invite_status {
+  pending
+  accepted
+  rejected
+}
+
+enum visibility_type {
+  public
+  institutional_only
+  private
+}
+
+enum presence_status {
+  confirmed
+  cancelled
+  maybe
+}
+
+enum seller_status {
+  open
+  sold
+  cancelled
+}
+
 model users {
-  id                              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                            String
-  email_personal                  String?   @unique
-  email_institutional             String?   @unique
-  phone                           String
-  password_hash                   String
-  role                            user_role @default(public)
-  created_at                      DateTime  @default(now()) @db.Timestamptz(6)
+  id                             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                           String
+  email_personal                 String?
+  email_institutional            String?
+  phone                          String
+  password_hash                  String
+  role                           user_role @default(public)
+  created_at                     DateTime  @default(now()) @db.Timestamptz(6)
   email_institutional_verified   Boolean   @default(false)
   verification_token             String?
   verification_token_expires_at  DateTime? @db.Timestamptz(6)
 
+  republic_members          republic_members[]
+  republic_invites_sent     republic_invites[] @relation("invited_by")
+  republic_invites_received republic_invites[] @relation("invited_user")
+  events                    events[]
+  event_presence            event_presence[]
+  sellers                   sellers[]
+  seller_reviews            seller_reviews[]
+
   @@map("users")
+}
+
+model republics {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  city       String
+  instagram  String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  republic_members republic_members[]
+  republic_invites republic_invites[]
+  events           events[]
+
+  @@map("republics")
+}
+
+model republic_members {
+  user_id     String      @db.Uuid
+  republic_id String      @db.Uuid
+  role        member_role @default(member)
+
+  user     users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  republic republics @relation(fields: [republic_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, republic_id])
+  @@map("republic_members")
+}
+
+model republic_invites {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  republic_id        String        @db.Uuid
+  invited_user_id    String        @db.Uuid
+  invited_by_user_id String        @db.Uuid
+  status             invite_status @default(pending)
+  created_at         DateTime      @default(now()) @db.Timestamptz(6)
+
+  republic        republics @relation(fields: [republic_id], references: [id], onDelete: Cascade)
+  invited_user    users     @relation("invited_user", fields: [invited_user_id], references: [id], onDelete: Cascade)
+  invited_by_user users     @relation("invited_by", fields: [invited_by_user_id], references: [id], onDelete: Cascade)
+
+  @@map("republic_invites")
+}
+
+model events {
+  id                     String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String
+  description            String?
+  date                   DateTime        @db.Timestamptz(6)
+  ended_at               DateTime        @db.Timestamptz(6)
+  created_by_user_id     String          @db.Uuid
+  created_by_republic_id String?         @db.Uuid
+  ticket_platform        String?
+  ticket_url             String?
+  instagram              String?
+  visibility_type        visibility_type @default(public)
+  created_at             DateTime        @default(now()) @db.Timestamptz(6)
+
+  created_by_user     users      @relation(fields: [created_by_user_id], references: [id])
+  created_by_republic republics? @relation(fields: [created_by_republic_id], references: [id])
+
+  event_location  event_location?
+  event_promoters event_promoters[]
+  event_lots      event_lots[]
+  event_presence  event_presence[]
+  sellers         sellers[]
+
+  @@map("events")
+}
+
+model event_location {
+  event_id   String    @id @db.Uuid
+  latitude   Decimal   @db.Decimal(9, 6)
+  longitude  Decimal   @db.Decimal(9, 6)
+  address    String?
+  release_at DateTime? @db.Timestamptz(6)
+
+  event events @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@map("event_location")
+}
+
+model event_promoters {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id  String  @db.Uuid
+  name      String
+  whatsapp  String?
+  instagram String?
+  telegram  String?
+
+  event events @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@map("event_promoters")
+}
+
+model event_lots {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id   String    @db.Uuid
+  lot_number Int
+  price      Decimal   @db.Decimal(10, 2)
+  start_date DateTime  @db.Timestamptz(6)
+  end_date   DateTime? @db.Timestamptz(6)
+  active     Boolean   @default(false)
+
+  event events @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, lot_number])
+  @@map("event_lots")
+}
+
+model event_presence {
+  event_id String          @db.Uuid
+  user_id  String          @db.Uuid
+  status   presence_status @default(confirmed)
+
+  event events @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user  users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([event_id, user_id])
+  @@map("event_presence")
+}
+
+model sellers {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String        @db.Uuid
+  event_id   String        @db.Uuid
+  price      Decimal       @db.Decimal(10, 2)
+  quantity   Int
+  status     seller_status @default(open)
+  created_at DateTime      @default(now()) @db.Timestamptz(6)
+
+  user  users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  event events @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  seller_reviews seller_reviews[]
+
+  @@map("sellers")
+}
+
+model seller_reviews {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reviewer_user_id String   @db.Uuid
+  seller_id        String   @db.Uuid
+  rating           Int      @db.SmallInt
+  comment          String?
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  reviewer users   @relation(fields: [reviewer_user_id], references: [id], onDelete: Cascade)
+  seller   sellers @relation(fields: [seller_id], references: [id], onDelete: Cascade)
+
+  @@unique([reviewer_user_id, seller_id])
+  @@map("seller_reviews")
 }

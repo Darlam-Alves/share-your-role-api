@@ -59,7 +59,15 @@ async function create({
   });
 }
 
+async function findById(id) {
+  return prisma.users.findUnique({
+    where: { id },
+    select: { id: true, role: true },
+  });
+}
+
 module.exports = {
   findByEmails,
+  findById,
   create,
 };

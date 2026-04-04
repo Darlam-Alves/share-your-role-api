@@ -4,10 +4,44 @@ const userRepository = require("../models/user");
 const VALID_VISIBILITY_TYPES = ["public", "institutional_only", "private"];
 const ALLOWED_ROLES = ["institutional", "admin"];
 
+const TICKET_PLATFORM_MAP = {
+  "blacktag.com.br": "Blacktag",
+  "byma.com.br": "Byma",
+  "sympla.com.br": "Sympla",
+  "eventbrite.com.br": "Eventbrite",
+  "eventbrite.com": "Eventbrite",
+  "ingresse.com": "Ingresse",
+};
+
+function deriveTicketPlatform(url) {
+  if (!url) return null;
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    return TICKET_PLATFORM_MAP[hostname] ?? hostname;
+  } catch {
+    return null;
+  }
+}
+
 function toOptionalTrimmedString(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+const INSTAGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_.]{1,30}$/;
+
+function normalizeInstagram(value) {
+  const raw = toOptionalTrimmedString(value);
+  if (!raw) return null;
+  const handle = raw.startsWith("@") ? raw : `@${raw}`;
+  if (!INSTAGRAM_HANDLE_REGEX.test(handle)) {
+    throw buildHttpError(
+      400,
+      "Instagram inválido. Use o formato @usuario (letras, números, pontos e underscores, até 30 caracteres)."
+    );
+  }
+  return handle.toLowerCase();
 }
 
 function buildHttpError(statusCode, message) {
@@ -21,8 +55,7 @@ async function createEvent(payload) {
   const name = toOptionalTrimmedString(payload.name);
   const description = toOptionalTrimmedString(payload.description);
   const visibilityType = toOptionalTrimmedString(payload.visibility_type);
-  const instagram = toOptionalTrimmedString(payload.instagram)?.toLowerCase() ?? null;
-  const ticketPlatform = toOptionalTrimmedString(payload.ticket_platform);
+  const instagram = normalizeInstagram(payload.instagram);
   const ticketUrl = toOptionalTrimmedString(payload.ticket_url);
   const createdByUserId = toOptionalTrimmedString(payload.created_by_user_id);
   const createdByRepublicId = toOptionalTrimmedString(payload.created_by_republic_id);
@@ -106,13 +139,29 @@ async function createEvent(payload) {
     promoters = payload.promoters.map((p) => ({
       name: toOptionalTrimmedString(p.name),
       whatsapp: toOptionalTrimmedString(p.whatsapp),
-      instagram: toOptionalTrimmedString(p.instagram)?.toLowerCase() ?? null,
+      instagram: normalizeInstagram(p.instagram),
       telegram: toOptionalTrimmedString(p.telegram),
     }));
 
     if (promoters.some((p) => !p.name)) {
       throw buildHttpError(400, "Cada promoter deve ter o campo name.");
     }
+
+    if (promoters.some((p) => !p.whatsapp && !p.instagram && !p.telegram)) {
+      throw buildHttpError(400, "Cada promoter deve ter ao menos um contato: whatsapp, instagram ou telegram.");
+    }
+  }
+
+  // Validate contact channel: instagram do evento ou ao menos um promoter com instagram/whatsapp
+  const hasContactChannel =
+    !!instagram ||
+    (Array.isArray(promoters) && promoters.some((p) => p.instagram || p.whatsapp));
+
+  if (!hasContactChannel) {
+    throw buildHttpError(
+      400,
+      "O evento deve ter instagram ou ao menos um promoter com instagram ou whatsapp."
+    );
   }
 
   try {
@@ -123,7 +172,7 @@ async function createEvent(payload) {
       endedAt,
       visibilityType,
       instagram,
-      ticketPlatform,
+      ticketPlatform: deriveTicketPlatform(ticketUrl),
       ticketUrl,
       createdByUserId,
       createdByRepublicId,

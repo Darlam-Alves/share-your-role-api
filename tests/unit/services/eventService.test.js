@@ -12,6 +12,7 @@ const VALID_PAYLOAD = {
   ended_at: "2026-04-11T04:00:00Z",
   visibility_type: "public",
   created_by_user_id: "uuid-user-123",
+  instagram: "@festarepublica",
 };
 
 const CREATED_EVENT = {
@@ -307,12 +308,22 @@ describe("eventService.createEvent", () => {
       ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("name") });
     });
 
-    test("aceita promoters com apenas name", async () => {
+    test("lança erro 400 quando promoter não tem nenhum contato", async () => {
       await expect(
         eventService.createEvent({
           ...VALID_PAYLOAD,
           promoters: [{ name: "João" }],
         })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("contato") });
+    });
+
+    test.each([
+      [{ name: "João", whatsapp: "19991234567" }],
+      [{ name: "João", instagram: "@joao" }],
+      [{ name: "João", telegram: "@joaotelegram" }],
+    ])("aceita promoter com ao menos um contato", async (promoter) => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, promoters: [promoter] })
       ).resolves.toBeDefined();
     });
 
@@ -338,15 +349,23 @@ describe("eventService.createEvent", () => {
       );
     });
 
-    test("converte instagram para lowercase", async () => {
-      await eventService.createEvent({ ...VALID_PAYLOAD, instagram: "FESTAREPUBLICA" });
+    test("converte instagram para lowercase e mantém o @", async () => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, instagram: "@FESTAREPUBLICA" });
 
       expect(eventRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ instagram: "festarepublica" })
+        expect.objectContaining({ instagram: "@festarepublica" })
       );
     });
 
-    test("converte instagram de promoter para lowercase", async () => {
+    test("adiciona @ quando instagram é enviado sem ele", async () => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, instagram: "festarepublica" });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ instagram: "@festarepublica" })
+      );
+    });
+
+    test("converte instagram de promoter para lowercase e mantém o @", async () => {
       await eventService.createEvent({
         ...VALID_PAYLOAD,
         promoters: [{ name: "João", instagram: "JOAO_PROMOTER" }],
@@ -355,7 +374,7 @@ describe("eventService.createEvent", () => {
       expect(eventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           promoters: expect.arrayContaining([
-            expect.objectContaining({ instagram: "joao_promoter" }),
+            expect.objectContaining({ instagram: "@joao_promoter" }),
           ]),
         })
       );
@@ -374,6 +393,43 @@ describe("eventService.createEvent", () => {
 
       expect(eventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ date: expect.any(Date) })
+      );
+    });
+  });
+
+  describe("validação do formato do instagram", () => {
+    test.each([
+      ["com caracteres inválidos", "@festa republica"],
+      ["com mais de 30 caracteres", "@" + "a".repeat(31)],
+      ["somente @", "@"],
+    ])("lança erro 400 quando instagram é %s", async (_, handle) => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, instagram: handle })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("Instagram") });
+    });
+
+    test("lança erro 400 quando instagram de promoter tem formato inválido", async () => {
+      const { instagram, ...payload } = VALID_PAYLOAD;
+      await expect(
+        eventService.createEvent({
+          ...payload,
+          promoters: [{ name: "João", instagram: "@perfil inválido" }],
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("Instagram") });
+    });
+
+    test.each([
+      ["handle simples", "festarepublica", "@festarepublica"],
+      ["já com @", "@festarepublica", "@festarepublica"],
+      ["com ponto", "festa.republica", "@festa.republica"],
+      ["com underscore", "festa_republica", "@festa_republica"],
+      ["com números", "festa123", "@festa123"],
+      ["com exatamente 30 caracteres", "a".repeat(30), "@" + "a".repeat(30)],
+    ])("aceita instagram %s e normaliza para '%s'", async (_, input, expected) => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, instagram: input });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ instagram: expected })
       );
     });
   });
@@ -428,6 +484,97 @@ describe("eventService.createEvent", () => {
         statusCode: 409,
         message: expect.stringContaining("nome"),
       });
+    });
+  });
+
+  describe("validação de canal de contato", () => {
+    test("lança erro 400 quando não há instagram nem promoter com contato", async () => {
+      const { instagram, ...payload } = VALID_PAYLOAD;
+      await expect(eventService.createEvent(payload)).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("instagram"),
+      });
+    });
+
+    test("aceita quando evento tem instagram", async () => {
+      await expect(eventService.createEvent(VALID_PAYLOAD)).resolves.toBeDefined();
+    });
+
+    test("aceita quando promoter tem whatsapp e evento não tem instagram", async () => {
+      const { instagram, ...payload } = VALID_PAYLOAD;
+      await expect(
+        eventService.createEvent({
+          ...payload,
+          promoters: [{ name: "João", whatsapp: "19999999999" }],
+        })
+      ).resolves.toBeDefined();
+    });
+
+    test("aceita quando promoter tem instagram e evento não tem instagram", async () => {
+      const { instagram, ...payload } = VALID_PAYLOAD;
+      await expect(
+        eventService.createEvent({
+          ...payload,
+          promoters: [{ name: "João", instagram: "@joao_promoter" }],
+        })
+      ).resolves.toBeDefined();
+    });
+
+    test("lança erro 400 quando promoters têm apenas name, sem contato, e evento não tem instagram", async () => {
+      const { instagram, ...payload } = VALID_PAYLOAD;
+      await expect(
+        eventService.createEvent({
+          ...payload,
+          promoters: [{ name: "João" }],
+        })
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+  });
+
+  describe("derivação de ticket_platform a partir de ticket_url", () => {
+    test.each([
+      ["https://blacktag.com.br/evento", "Blacktag"],
+      ["https://byma.com.br/evento", "Byma"],
+      ["https://sympla.com.br/evento", "Sympla"],
+      ["https://www.eventbrite.com/e/123", "Eventbrite"],
+      ["https://ingresse.com/evento", "Ingresse"],
+    ])("deriva '%s' para '%s'", async (url, expectedPlatform) => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, ticket_url: url });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ticketPlatform: expectedPlatform })
+      );
+    });
+
+    test("usa o hostname como platform quando a URL não é conhecida", async () => {
+      await eventService.createEvent({
+        ...VALID_PAYLOAD,
+        ticket_url: "https://minhaticketeira.com.br/evento",
+      });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ticketPlatform: "minhaticketeira.com.br" })
+      );
+    });
+
+    test("passa ticketPlatform null quando ticket_url não é enviado", async () => {
+      await eventService.createEvent(VALID_PAYLOAD);
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ticketPlatform: null })
+      );
+    });
+
+    test("ignora ticket_platform enviado no payload e deriva da URL", async () => {
+      await eventService.createEvent({
+        ...VALID_PAYLOAD,
+        ticket_url: "https://blacktag.com.br/evento",
+        ticket_platform: "Qualquer Coisa",
+      });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ticketPlatform: "Blacktag" })
+      );
     });
   });
 });

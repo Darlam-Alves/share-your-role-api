@@ -90,7 +90,7 @@ CREATE TABLE events (
   created_by_republic_id   UUID             REFERENCES republics(id),
   ticket_platform          TEXT,
   ticket_url               TEXT,
-  instagram                TEXT,
+  instagram                TEXT CHECK (instagram IS NULL OR instagram ~ '^@[a-zA-Z0-9_.]{1,30}$'),
   visibility_type          visibility_type  NOT NULL DEFAULT 'public',
   created_at               TIMESTAMPTZ      NOT NULL DEFAULT now(),
 );
@@ -106,8 +106,11 @@ CREATE TABLE event_promoters (
   event_id   UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
   whatsapp   TEXT,
-  instagram  TEXT,
-  telegram   TEXT
+  instagram  TEXT CHECK (instagram IS NULL OR instagram ~ '^@[a-zA-Z0-9_.]{1,30}$'),
+  telegram   TEXT,
+
+  CONSTRAINT chk_promoters_at_least_one_contact
+    CHECK (whatsapp IS NOT NULL OR instagram IS NOT NULL OR telegram IS NOT NULL)
 );
 
 -- ------------------------------------------------------------

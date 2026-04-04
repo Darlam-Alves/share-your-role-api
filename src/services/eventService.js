@@ -138,4 +138,54 @@ async function createEvent(payload) {
   }
 }
 
-module.exports = { createEvent };
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+async function listEvents(payload) {
+  const startDateStr = toOptionalTrimmedString(payload.start_date);
+  const endDateStr = toOptionalTrimmedString(payload.end_date);
+
+  if (!startDateStr || !endDateStr) {
+    throw buildHttpError(400, "Parâmetros obrigatórios: start_date, end_date.");
+  }
+
+  if (!DATE_REGEX.test(startDateStr)) {
+    throw buildHttpError(400, "Campo start_date deve estar no formato YYYY-MM-DD.");
+  }
+
+  if (!DATE_REGEX.test(endDateStr)) {
+    throw buildHttpError(400, "Campo end_date deve estar no formato YYYY-MM-DD.");
+  }
+
+  const startDate = new Date(`${startDateStr}T00:00:00.000Z`);
+  const endDate = new Date(`${endDateStr}T23:59:59.999Z`);
+
+  if (endDate < startDate) {
+    throw buildHttpError(400, "Campo end_date deve ser posterior a start_date.");
+  }
+
+  const events = await eventRepository.list({
+    startDate,
+    endDate,
+    visibilityTypes: ["public"], // TODO: incluir institutional_only para usuários verificados (JWT)
+  });
+
+  const now = new Date();
+  return events.map(({ event_location, ...event }) => {
+    if (!event_location) return { ...event, location: null };
+
+    const embargoed = event_location.release_at && event_location.release_at > now;
+
+    return {
+      ...event,
+      location: embargoed
+        ? { address: event_location.address }
+        : {
+            address: event_location.address,
+            latitude: event_location.latitude,
+            longitude: event_location.longitude,
+          },
+    };
+  });
+}
+
+module.exports = { createEvent, listEvents };

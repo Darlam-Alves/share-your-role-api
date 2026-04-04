@@ -259,7 +259,7 @@ Toda normalização de input acontece **no service**, antes de qualquer validaç
 ### Regras obrigatórias
 
 - **Campos de texto:** sempre aplicar `.trim()` para remover espaços extras
-- **E-mails:** sempre aplicar `.trim().toLowerCase()` — nunca salvar com maiúsculas
+- **campos textuais usados como comparacao:** sempre aplicar `.trim().toLowerCase()` — nunca salvar com maiúsculas
 - **Campos opcionais:** se após o trim o valor for string vazia, tratar como `null`
 
 ### Por que normalizar no service

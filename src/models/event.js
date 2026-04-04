@@ -72,4 +72,20 @@ async function create({
   });
 }
 
-module.exports = { findRepublicMember, create };
+async function list({ startDate, endDate, visibilityTypes }) {
+  return prisma.events.findMany({
+    where: {
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+      visibility_type: { in: visibilityTypes },
+    },
+    include: {
+      event_location: true,
+    },
+    orderBy: { date: "asc" },
+  });
+}
+
+module.exports = { findRepublicMember, create, list };

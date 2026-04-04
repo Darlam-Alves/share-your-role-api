@@ -644,12 +644,63 @@ describe("eventService.listEvents", () => {
   });
 
   describe("filtro de visibilidade", () => {
-    test("chama o repositório apenas com eventos public", async () => {
+    test("chama o repositório com public e institutional_only", async () => {
       await eventService.listEvents(VALID_PARAMS);
 
       expect(eventRepository.list).toHaveBeenCalledWith(
-        expect.objectContaining({ visibilityTypes: ["public"] })
+        expect.objectContaining({ visibilityTypes: ["public", "institutional_only"] })
       );
+    });
+  });
+
+  describe("localização de eventos institutional_only", () => {
+    const institutionalEvent = () =>
+      makeEvent({
+        visibility_type: "institutional_only",
+        event_location: {
+          address: "Rua das Repúblicas, 42",
+          latitude: "-22.814500",
+          longitude: "-47.068800",
+          release_at: null,
+        },
+      });
+
+    test("retorna location null para institutional_only sem token verificado", async () => {
+      eventRepository.list.mockResolvedValue([institutionalEvent()]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.location).toBeNull();
+    });
+
+    test("retorna localização completa para institutional_only com token verificado", async () => {
+      eventRepository.list.mockResolvedValue([institutionalEvent()]);
+
+      const [event] = await eventService.listEvents({
+        ...VALID_PARAMS,
+        institutionalVerified: true,
+      });
+
+      expect(event.location.latitude).toBeDefined();
+      expect(event.location.longitude).toBeDefined();
+      expect(event.location.address).toBeDefined();
+    });
+
+    test("eventos public não são afetados pela verificação institucional", async () => {
+      eventRepository.list.mockResolvedValue([
+        makeEvent({
+          event_location: {
+            address: "Rua X, 123",
+            latitude: "-22.004612",
+            longitude: "-47.890978",
+            release_at: null,
+          },
+        }),
+      ]);
+
+      const [event] = await eventService.listEvents(VALID_PARAMS);
+
+      expect(event.location.latitude).toBeDefined();
     });
   });
 

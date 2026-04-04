@@ -212,14 +212,23 @@ async function listEvents(payload) {
     throw buildHttpError(400, "Campo end_date deve ser posterior a start_date.");
   }
 
+  const isInstitutionalVerified = !!payload.institutionalVerified; // TODO: extrair de req.user.email_institutional_verified (JWT)
+
   const events = await eventRepository.list({
     startDate,
     endDate,
-    visibilityTypes: ["public"], // TODO: incluir institutional_only para usuários verificados (JWT)
+    visibilityTypes: ["public", "institutional_only"],
   });
 
   const now = new Date();
   return events.map(({ event_location, ...event }) => {
+    const isInstitutionalOnly = event.visibility_type === "institutional_only";
+
+    // Localização de eventos institutional_only é visível apenas para usuários com email institucional verificado
+    if (isInstitutionalOnly && !isInstitutionalVerified) {
+      return { ...event, location: null };
+    }
+
     if (!event_location) return { ...event, location: null };
 
     const embargoed = event_location.release_at && event_location.release_at > now;

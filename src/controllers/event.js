@@ -57,4 +57,20 @@ async function listEvents(request, response) {
   }
 }
 
-module.exports = { createEvent, listEvents };
+async function getEventById(request, response) {
+  const { id } = request.params;
+
+  try {
+    const event = await eventService.getEventById(id);
+    return response.status(200).json(event);
+  } catch (error) {
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({ message: error.message });
+    }
+
+    console.error("Erro ao buscar evento:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
+module.exports = { createEvent, listEvents, getEventById };

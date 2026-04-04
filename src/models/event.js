@@ -88,4 +88,14 @@ async function list({ startDate, endDate, visibilityTypes }) {
   });
 }
 
-module.exports = { findRepublicMember, create, list };
+async function findById(id) {
+  return prisma.events.findUnique({
+    where: { id },
+    include: {
+      event_location: true,
+      event_promoters: true,
+    },
+  });
+}
+
+module.exports = { findRepublicMember, create, list, findById };

@@ -247,4 +247,36 @@ async function listEvents(payload) {
   });
 }
 
-module.exports = { createEvent, listEvents };
+async function getEventById(id) {
+  if (!toOptionalTrimmedString(id)) {
+    throw buildHttpError(400, "Parâmetro id é obrigatório.");
+  }
+
+  const event = await eventRepository.findById(id);
+  if (!event) {
+    throw buildHttpError(404, "Evento não encontrado.");
+  }
+
+  const { event_location, event_promoters, ...rest } = event;
+
+  const now = new Date();
+  let location = null;
+  if (event_location) {
+    const embargoed = event_location.release_at && event_location.release_at > now;
+    location = embargoed
+      ? { address: event_location.address }
+      : {
+          address: event_location.address,
+          latitude: event_location.latitude,
+          longitude: event_location.longitude,
+        };
+  }
+
+  return {
+    ...rest,
+    location,
+    promoters: event_promoters,
+  };
+}
+
+module.exports = { createEvent, listEvents, getEventById };

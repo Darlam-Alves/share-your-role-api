@@ -213,37 +213,11 @@ async function listEvents(payload) {
     throw buildHttpError(400, "Campo end_date deve ser posterior a start_date.");
   }
 
-  const isInstitutionalVerified = !!payload.institutionalVerified; // TODO: extrair de req.user.email_institutional_verified (JWT)
-
-  const events = await eventRepository.list({
+  // TODO: quando JWT estiver implementado, incluir institutional_only para email_institutional_verified = true
+  return eventRepository.list({
     startDate,
     endDate,
     visibilityTypes: ["public", "institutional_only"],
-  });
-
-  const now = new Date();
-  return events.map(({ event_location, ...event }) => {
-    const isInstitutionalOnly = event.visibility_type === "institutional_only";
-
-    // Localização de eventos institutional_only é visível apenas para usuários com email institucional verificado
-    if (isInstitutionalOnly && !isInstitutionalVerified) {
-      return { ...event, location: null };
-    }
-
-    if (!event_location) return { ...event, location: null };
-
-    const embargoed = event_location.release_at && event_location.release_at > now;
-
-    return {
-      ...event,
-      location: embargoed
-        ? { address: event_location.address }
-        : {
-            address: event_location.address,
-            latitude: event_location.latitude,
-            longitude: event_location.longitude,
-          },
-    };
   });
 }
 
@@ -257,7 +231,7 @@ async function getEventById(id) {
     throw buildHttpError(404, "Evento não encontrado.");
   }
 
-  const { event_location, event_promoters, ...rest } = event;
+  const { event_location, event_promoters, created_by_user, ...rest } = event;
 
   const now = new Date();
   let location = null;
@@ -274,6 +248,7 @@ async function getEventById(id) {
 
   return {
     ...rest,
+    organized_by: created_by_user,
     location,
     promoters: event_promoters,
   };

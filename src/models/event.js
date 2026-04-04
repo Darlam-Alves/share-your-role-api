@@ -73,6 +73,7 @@ async function create({
 }
 
 async function list({ startDate, endDate, visibilityTypes }) {
+  // TODO: avaliar ordenação alternativa dentro do mesmo dia (created_at, contagem de presença confirmada)
   return prisma.events.findMany({
     where: {
       date: {
@@ -81,8 +82,12 @@ async function list({ startDate, endDate, visibilityTypes }) {
       },
       visibility_type: { in: visibilityTypes },
     },
-    include: {
-      event_location: true,
+    select: {
+      id: true,
+      name: true,
+      date: true,
+      ended_at: true,
+      visibility_type: true,
     },
     orderBy: { date: "asc" },
   });
@@ -91,9 +96,31 @@ async function list({ startDate, endDate, visibilityTypes }) {
 async function findById(id) {
   return prisma.events.findUnique({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      date: true,
+      ended_at: true,
+      visibility_type: true,
+      instagram: true,
+      ticket_platform: true,
+      ticket_url: true,
+      created_by_user: {
+        select: {
+          name: true,
+        },
+      },
       event_location: true,
-      event_promoters: true,
+      event_promoters: {
+        select: {
+          id: true,
+          name: true,
+          whatsapp: true,
+          instagram: true,
+          telegram: true,
+        },
+      },
     },
   });
 }

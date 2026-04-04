@@ -588,17 +588,9 @@ describe("eventService.listEvents", () => {
   const makeEvent = (overrides = {}) => ({
     id: "uuid-event-1",
     name: "Festa do Republica",
-    description: null,
     date: new Date("2026-04-08T22:00:00Z"),
     ended_at: new Date("2026-04-09T04:00:00Z"),
     visibility_type: "public",
-    instagram: null,
-    ticket_platform: null,
-    ticket_url: null,
-    created_by_user_id: "uuid-user-123",
-    created_by_republic_id: null,
-    created_at: new Date("2026-04-01T00:00:00Z"),
-    event_location: null,
     ...overrides,
   });
 
@@ -653,124 +645,6 @@ describe("eventService.listEvents", () => {
     });
   });
 
-  describe("localização de eventos institutional_only", () => {
-    const institutionalEvent = () =>
-      makeEvent({
-        visibility_type: "institutional_only",
-        event_location: {
-          address: "Rua das Repúblicas, 42",
-          latitude: "-22.814500",
-          longitude: "-47.068800",
-          release_at: null,
-        },
-      });
-
-    test("retorna location null para institutional_only sem token verificado", async () => {
-      eventRepository.list.mockResolvedValue([institutionalEvent()]);
-
-      const [event] = await eventService.listEvents(VALID_PARAMS);
-
-      expect(event.location).toBeNull();
-    });
-
-    test("retorna localização completa para institutional_only com token verificado", async () => {
-      eventRepository.list.mockResolvedValue([institutionalEvent()]);
-
-      const [event] = await eventService.listEvents({
-        ...VALID_PARAMS,
-        institutionalVerified: true,
-      });
-
-      expect(event.location.latitude).toBeDefined();
-      expect(event.location.longitude).toBeDefined();
-      expect(event.location.address).toBeDefined();
-    });
-
-    test("eventos public não são afetados pela verificação institucional", async () => {
-      eventRepository.list.mockResolvedValue([
-        makeEvent({
-          event_location: {
-            address: "Rua X, 123",
-            latitude: "-22.004612",
-            longitude: "-47.890978",
-            release_at: null,
-          },
-        }),
-      ]);
-
-      const [event] = await eventService.listEvents(VALID_PARAMS);
-
-      expect(event.location.latitude).toBeDefined();
-    });
-  });
-
-  describe("lógica de embargo de localização", () => {
-    test("inclui lat/lng quando release_at é null", async () => {
-      eventRepository.list.mockResolvedValue([
-        makeEvent({
-          event_location: {
-            address: "Rua X, 123",
-            latitude: "-22.004612",
-            longitude: "-47.890978",
-            release_at: null,
-          },
-        }),
-      ]);
-
-      const [event] = await eventService.listEvents(VALID_PARAMS);
-
-      expect(event.location.latitude).toBeDefined();
-      expect(event.location.longitude).toBeDefined();
-    });
-
-    test("inclui lat/lng quando release_at já passou", async () => {
-      const pastDate = new Date(Date.now() - 60 * 60 * 1000);
-      eventRepository.list.mockResolvedValue([
-        makeEvent({
-          event_location: {
-            address: "Rua X, 123",
-            latitude: "-22.004612",
-            longitude: "-47.890978",
-            release_at: pastDate,
-          },
-        }),
-      ]);
-
-      const [event] = await eventService.listEvents(VALID_PARAMS);
-
-      expect(event.location.latitude).toBeDefined();
-      expect(event.location.longitude).toBeDefined();
-    });
-
-    test("omite lat/lng quando release_at é no futuro", async () => {
-      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
-      eventRepository.list.mockResolvedValue([
-        makeEvent({
-          event_location: {
-            address: "Rua X, 123",
-            latitude: "-22.004612",
-            longitude: "-47.890978",
-            release_at: futureDate,
-          },
-        }),
-      ]);
-
-      const [event] = await eventService.listEvents(VALID_PARAMS);
-
-      expect(event.location.address).toBe("Rua X, 123");
-      expect(event.location.latitude).toBeUndefined();
-      expect(event.location.longitude).toBeUndefined();
-    });
-
-    test("retorna location null quando evento não tem localização", async () => {
-      eventRepository.list.mockResolvedValue([makeEvent({ event_location: null })]);
-
-      const [event] = await eventService.listEvents(VALID_PARAMS);
-
-      expect(event.location).toBeNull();
-    });
-  });
-
   describe("retorno", () => {
     test("retorna lista vazia quando não há eventos no período", async () => {
       eventRepository.list.mockResolvedValue([]);
@@ -780,13 +654,16 @@ describe("eventService.listEvents", () => {
       expect(result).toEqual([]);
     });
 
-    test("retorna eventos sem o campo event_location no formato original", async () => {
+    test("retorna campos resumidos do evento", async () => {
       eventRepository.list.mockResolvedValue([makeEvent()]);
 
       const [event] = await eventService.listEvents(VALID_PARAMS);
 
-      expect(event.event_location).toBeUndefined();
-      expect(event.location).toBeNull();
+      expect(event.id).toBeDefined();
+      expect(event.name).toBeDefined();
+      expect(event.date).toBeDefined();
+      expect(event.ended_at).toBeDefined();
+      expect(event.visibility_type).toBeDefined();
     });
   });
 });

@@ -11,6 +11,7 @@ const TICKET_PLATFORM_MAP = {
   "eventbrite.com.br": "Eventbrite",
   "eventbrite.com": "Eventbrite",
   "ingresse.com": "Ingresse",
+  "cheers.com.br": "Cheers",
 };
 
 function deriveTicketPlatform(url) {

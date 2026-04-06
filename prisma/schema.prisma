@@ -155,6 +155,9 @@ model event_promoters {
 
   event events @relation(fields: [event_id], references: [id], onDelete: Cascade)
 
+  @@unique([event_id, whatsapp])
+  @@unique([event_id, instagram])
+  @@unique([event_id, telegram])
   @@map("event_promoters")
 }
 

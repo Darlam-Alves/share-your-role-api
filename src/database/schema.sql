@@ -110,7 +110,11 @@ CREATE TABLE event_promoters (
   telegram   TEXT,
 
   CONSTRAINT chk_promoters_at_least_one_contact
-    CHECK (whatsapp IS NOT NULL OR instagram IS NOT NULL OR telegram IS NOT NULL)
+    CHECK (whatsapp IS NOT NULL OR instagram IS NOT NULL OR telegram IS NOT NULL),
+
+  CONSTRAINT uq_event_promoters_whatsapp  UNIQUE (event_id, whatsapp),
+  CONSTRAINT uq_event_promoters_instagram UNIQUE (event_id, instagram),
+  CONSTRAINT uq_event_promoters_telegram  UNIQUE (event_id, telegram)
 );
 
 -- ------------------------------------------------------------

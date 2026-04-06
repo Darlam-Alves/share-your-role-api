@@ -182,6 +182,16 @@ async function createEvent(payload) {
     });
   } catch (error) {
     if (error?.code === "P2002") {
+      const target = error.meta?.target ?? [];
+      if (target.includes("whatsapp")) {
+        throw buildHttpError(409, "Esse WhatsApp já está cadastrado como promoter neste evento.");
+      }
+      if (target.includes("instagram")) {
+        throw buildHttpError(409, "Esse Instagram já está cadastrado como promoter neste evento.");
+      }
+      if (target.includes("telegram")) {
+        throw buildHttpError(409, "Esse Telegram já está cadastrado como promoter neste evento.");
+      }
       throw buildHttpError(409, "Já existe um evento com esse nome nessa data.");
     }
     throw error;

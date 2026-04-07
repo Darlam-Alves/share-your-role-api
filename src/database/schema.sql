@@ -165,7 +165,9 @@ CREATE TABLE sellers (
   price       NUMERIC(10,2) NOT NULL CHECK (price >= 0),
   quantity    INT           NOT NULL CHECK (quantity > 0),
   status      seller_status NOT NULL DEFAULT 'open',
-  created_at  TIMESTAMPTZ   NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ   NOT NULL DEFAULT now(),
+
+  CONSTRAINT uq_sellers_user_event UNIQUE (user_id, event_id)
 );
 
 -- ------------------------------------------------------------

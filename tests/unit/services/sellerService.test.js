@@ -100,6 +100,19 @@ describe("sellerService.createSeller", () => {
 
   // TODO: adicionar testes de teto de preço quando reference_price for implementado no evento
 
+  describe("anúncio duplicado", () => {
+    test("lança erro 409 quando usuário já tem anúncio no evento", async () => {
+      const prismaError = new Error("Unique constraint failed");
+      prismaError.code = "P2002";
+      sellerRepository.create.mockRejectedValue(prismaError);
+
+      await expect(sellerService.createSeller(VALID_PAYLOAD)).rejects.toMatchObject({
+        statusCode: 409,
+        message: expect.stringContaining("já tem um anúncio"),
+      });
+    });
+  });
+
   describe("fluxo de sucesso", () => {
     test("retorna os dados do seller criado", async () => {
       const result = await sellerService.createSeller(VALID_PAYLOAD);

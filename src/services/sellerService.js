@@ -40,12 +40,19 @@ async function createSeller({ eventId, userId, price, quantity }) {
     throw buildHttpError(400, "Campo quantity deve ser um número inteiro maior que zero.");
   }
 
-  return sellerRepository.create({
-    userId,
-    eventId,
-    price: parsedPrice,
-    quantity: parsedQuantity,
-  });
+  try {
+    return await sellerRepository.create({
+      userId,
+      eventId,
+      price: parsedPrice,
+      quantity: parsedQuantity,
+    });
+  } catch (error) {
+    if (error?.code === "P2002") {
+      throw buildHttpError(409, "Você já tem um anúncio para este evento. Edite o anúncio existente.");
+    }
+    throw error;
+  }
 }
 
 module.exports = { createSeller };

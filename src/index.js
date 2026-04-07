@@ -5,6 +5,7 @@ const cors = require("cors");
 const userRoutes = require("./routes/user");
 const eventRoutes = require("./routes/event");
 const authRoutes = require("./routes/auth");
+const sellerRoutes = require("./routes/seller");
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use(userRoutes);
 app.use(authRoutes);
 app.use(eventRoutes);
+app.use(sellerRoutes);
 
 module.exports = app;
 

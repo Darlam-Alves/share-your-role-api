@@ -66,8 +66,27 @@ async function findById(id) {
   });
 }
 
+async function findByEmail(email) {
+  return prisma.users.findFirst({
+    where: {
+      OR: [
+        { email_personal: email },
+        { email_institutional: email },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      email_institutional_verified: true,
+      password_hash: true,
+    },
+  });
+}
+
 module.exports = {
   findByEmails,
   findById,
+  findByEmail,
   create,
 };

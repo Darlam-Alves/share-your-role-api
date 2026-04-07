@@ -3,8 +3,8 @@ const eventService = require("../../../src/services/eventService");
 
 jest.mock("../../../src/services/eventService");
 
-function makeReq({ body = {}, query = {} } = {}) {
-  return { body, query };
+function makeReq({ body = {}, query = {}, user = {} } = {}) {
+  return { body, query, user };
 }
 
 function makeRes() {
@@ -30,11 +30,12 @@ const CREATED_EVENT = {
   promoters: [],
 };
 
+const VALID_USER = { id: "uuid-user-123", role: "institutional" };
+
 const VALID_BODY = {
   name: "Festa do Republica",
   date: "2026-04-10T22:00:00Z",
   visibility_type: "public",
-  created_by_user_id: "uuid-user-123",
 };
 
 describe("eventController.createEvent", () => {
@@ -50,7 +51,7 @@ describe("eventController.createEvent", () => {
 
   describe("fluxo de sucesso", () => {
     test("retorna 201 com os dados do evento criado", async () => {
-      const req = makeReq({ body: VALID_BODY });
+      const req = makeReq({ body: VALID_BODY, user: VALID_USER });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -60,7 +61,7 @@ describe("eventController.createEvent", () => {
     });
 
     test("repassa os campos do body para o service", async () => {
-      const req = makeReq({ body: VALID_BODY });
+      const req = makeReq({ body: VALID_BODY, user: VALID_USER });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -70,7 +71,6 @@ describe("eventController.createEvent", () => {
           name: "Festa do Republica",
           date: "2026-04-10T22:00:00Z",
           visibility_type: "public",
-          created_by_user_id: "uuid-user-123",
         })
       );
     });
@@ -86,7 +86,7 @@ describe("eventController.createEvent", () => {
         location: { latitude: -23.5, longitude: -46.6 },
         promoters: [{ name: "João", whatsapp: "11999999999" }],
       };
-      const req = makeReq({ body });
+      const req = makeReq({ body, user: VALID_USER });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -102,14 +102,17 @@ describe("eventController.createEvent", () => {
       );
     });
 
-    test("created_by_user_id vem exclusivamente do body", async () => {
-      const req = makeReq({ body: { ...VALID_BODY, created_by_user_id: "uuid-especifico" } });
+    test("created_by_user_id e user_role vêm de req.user", async () => {
+      const req = makeReq({ body: VALID_BODY, user: { id: "uuid-especifico", role: "admin" } });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
 
       expect(eventService.createEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ created_by_user_id: "uuid-especifico" })
+        expect.objectContaining({
+          created_by_user_id: "uuid-especifico",
+          user_role: "admin",
+        })
       );
     });
   });
@@ -134,7 +137,7 @@ describe("eventController.createEvent", () => {
       error.statusCode = 403;
       eventService.createEvent.mockRejectedValue(error);
 
-      const req = makeReq({ body: VALID_BODY });
+      const req = makeReq({ body: VALID_BODY, user: VALID_USER });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -145,7 +148,7 @@ describe("eventController.createEvent", () => {
     test("retorna 500 quando o service lança erro sem statusCode", async () => {
       eventService.createEvent.mockRejectedValue(new Error("Connection refused"));
 
-      const req = makeReq({ body: VALID_BODY });
+      const req = makeReq({ body: VALID_BODY, user: VALID_USER });
       const res = makeRes();
 
       await eventController.createEvent(req, res);
@@ -161,7 +164,7 @@ describe("eventController.createEvent", () => {
         new Error("senha do banco: postgres123")
       );
 
-      const req = makeReq({ body: VALID_BODY });
+      const req = makeReq({ body: VALID_BODY, user: VALID_USER });
       const res = makeRes();
 
       await eventController.createEvent(req, res);

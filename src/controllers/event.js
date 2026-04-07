@@ -9,7 +9,6 @@ async function createEvent(request, response) {
     visibility_type,
     instagram,
     ticket_url,
-    created_by_user_id, // TODO: replace with req.user.id when JWT middleware is implemented
     created_by_republic_id,
     location,
     promoters,
@@ -24,7 +23,8 @@ async function createEvent(request, response) {
       visibility_type,
       instagram,
       ticket_url,
-      created_by_user_id,
+      created_by_user_id: request.user.id,
+      user_role: request.user.role,
       created_by_republic_id,
       location,
       promoters,

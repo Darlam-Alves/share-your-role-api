@@ -1,5 +1,4 @@
 const eventRepository = require("../models/event");
-const userRepository = require("../models/user");
 
 const VALID_VISIBILITY_TYPES = ["public", "institutional_only", "private"];
 const ALLOWED_ROLES = ["institutional", "admin"];
@@ -99,12 +98,8 @@ async function createEvent(payload) {
     throw buildHttpError(400, "Campo created_by_user_id é obrigatório.");
   }
 
-  // Validate user role — server-side lookup (will use req.user.role from JWT later)
-  const user = await userRepository.findById(createdByUserId);
-  if (!user) {
-    throw buildHttpError(400, "Usuário não encontrado.");
-  }
-  if (!ALLOWED_ROLES.includes(user.role)) {
+  const userRole = toOptionalTrimmedString(payload.user_role);
+  if (!ALLOWED_ROLES.includes(userRole)) {
     throw buildHttpError(403, "Apenas usuários institucionais ou administradores podem criar eventos.");
   }
 

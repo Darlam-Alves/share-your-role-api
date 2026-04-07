@@ -1,10 +1,7 @@
 const eventService = require("../../../src/services/eventService");
 const eventRepository = require("../../../src/models/event");
-const userRepository = require("../../../src/models/user");
-
 
 jest.mock("../../../src/models/event");
-jest.mock("../../../src/models/user");
 
 const VALID_PAYLOAD = {
   name: "Festa do Republica",
@@ -12,6 +9,7 @@ const VALID_PAYLOAD = {
   ended_at: "2026-04-11T04:00:00Z",
   visibility_type: "public",
   created_by_user_id: "uuid-user-123",
+  user_role: "institutional",
   instagram: "@festarepublica",
 };
 
@@ -34,7 +32,6 @@ const CREATED_EVENT = {
 describe("eventService.createEvent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    userRepository.findById.mockResolvedValue({ id: "uuid-user-123", role: "institutional" });
     eventRepository.findRepublicMember.mockResolvedValue(null);
     eventRepository.create.mockResolvedValue(CREATED_EVENT);
   });
@@ -201,33 +198,27 @@ describe("eventService.createEvent", () => {
   });
 
   describe("validação de role do usuário", () => {
-    test("lança erro 403 quando usuário tem role 'public'", async () => {
-      userRepository.findById.mockResolvedValue({ id: "uuid-user-123", role: "public" });
-
-      await expect(eventService.createEvent(VALID_PAYLOAD)).rejects.toMatchObject({
-        statusCode: 403,
-      });
+    test("lança erro 403 quando user_role é 'public'", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, user_role: "public" })
+      ).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    test("lança erro 400 quando usuário não existe", async () => {
-      userRepository.findById.mockResolvedValue(null);
-
-      await expect(eventService.createEvent(VALID_PAYLOAD)).rejects.toMatchObject({
-        statusCode: 400,
-        message: expect.stringContaining("Usuário não encontrado"),
-      });
+    test("lança erro 403 quando user_role não é enviado", async () => {
+      const { user_role, ...payload } = VALID_PAYLOAD;
+      await expect(eventService.createEvent(payload)).rejects.toMatchObject({ statusCode: 403 });
     });
 
-    test("aceita role 'institutional'", async () => {
-      userRepository.findById.mockResolvedValue({ id: "uuid-user-123", role: "institutional" });
-
-      await expect(eventService.createEvent(VALID_PAYLOAD)).resolves.toBeDefined();
+    test("aceita user_role 'institutional'", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, user_role: "institutional" })
+      ).resolves.toBeDefined();
     });
 
-    test("aceita role 'admin'", async () => {
-      userRepository.findById.mockResolvedValue({ id: "uuid-user-123", role: "admin" });
-
-      await expect(eventService.createEvent(VALID_PAYLOAD)).resolves.toBeDefined();
+    test("aceita user_role 'admin'", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, user_role: "admin" })
+      ).resolves.toBeDefined();
     });
   });
 

@@ -1,8 +1,8 @@
 const bcrypt = require("bcrypt");
 const userService = require("../../../src/services/userService");
-const userRepository = require("../../../src/models/user");
+const userRepository = require("../../../src/models/user.models");
 
-jest.mock("../../../src/models/user");
+jest.mock("../../../src/models/user.models");
 jest.mock("bcrypt");
 
 const VALID_PAYLOAD = {

@@ -14,6 +14,7 @@ function buildEmailFilters({ emailPersonal, emailInstitutional }) {
   return filters;
 }
 
+// Usado para o Cadastro (Registo)
 async function findByEmails({ emailPersonal, emailInstitutional }) {
   const emailFilters = buildEmailFilters({ emailPersonal, emailInstitutional });
 
@@ -29,6 +30,23 @@ async function findByEmails({ emailPersonal, emailInstitutional }) {
       id: true,
       email_personal: true,
       email_institutional: true,
+    },
+  });
+}
+
+// novafuncção usada para o Login
+async function findByEmail(email) {
+  return prisma.users.findFirst({
+    where: {
+      OR: [
+        { email_personal: email },
+        { email_institutional: email },
+      ],
+    },
+    select: {
+      id: true,
+      role: true,
+      password_hash: true, // Obrigatório trazer a senha encriptada para o login!
     },
   });
 }
@@ -61,5 +79,6 @@ async function create({
 
 module.exports = {
   findByEmails,
+  findByEmail, // exportação da nova função
   create,
 };

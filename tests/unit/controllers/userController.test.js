@@ -1,4 +1,4 @@
-const userController = require("../../../src/controllers/user");
+const userController = require("../../../src/controllers/user.controller");
 const userService = require("../../../src/services/userService");
 
 jest.mock("../../../src/services/userService");

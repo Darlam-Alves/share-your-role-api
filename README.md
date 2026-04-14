@@ -41,6 +41,12 @@ psql -U seu_usuario -c "CREATE DATABASE share_your_role;"
 psql -U seu_usuario -d share_your_role -f src/database/schema.sql
 ```
 
+Opcionalmente, popule o banco com dados de exemplo:
+
+```bash
+psql -U seu_usuario -d share_your_role -f src/database/seed_events.sql
+```
+
 ### 5. Gere o Prisma Client
 
 ```bash
@@ -72,7 +78,7 @@ A API estará disponível em `http://localhost:3000`.
   "phone": "19999999999",
   "password": "senha123",
   "email_personal": "ana@gmail.com",
-  "email_institutional": "ana@unicamp.br"
+  "email_institutional": "ana@usp.br"
 }
 ```
 > Pelo menos um dos emails é obrigatório. O `role` é definido automaticamente pelo backend.

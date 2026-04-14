@@ -114,22 +114,27 @@ Requer `Authorization: Bearer <token>` de usuário `institutional` ou `admin`.
 
 ```json
 {
-  "name": "Independência das Repúblicas",
-  "date": "2025-02-24T22:00:00-03:00",
-  "ended_at": "2025-02-25T05:00:00-03:00",
+  "name": "Banana Minamora",
+  "date": "2026-04-09T22:00:00-03:00",
+  "ended_at": "2026-04-10T05:00:00-03:00",
   "visibility_type": "public",
-  "instagram": "@independenciadasrep",
-  "ticket_url": "https://blacktag.com.br/independencia-rep",
+  "instagram": "@repminamorasc",
+  "ticket_url": "https://byma.com.br/event/69ca93ed2b7ae90004ec4bfd",
   "location": {
-    "latitude": -22.0054,
-    "longitude": -47.8977,
-    "address": "Rua Episcopal, 1850 — Centro, São Carlos",
-    "release_at": "2025-02-24T21:00:00-03:00"
+    "latitude": -22.0130,
+    "longitude": -47.8920,
+    "address": "R. Maj. José Inácio, 2206 - Centro, São Carlos - SP"
   },
   "promoters": [
     {
-      "name": "CA Engenharia",
-      "whatsapp": "19991110001",
+      "name": "Mate",
+      "whatsapp": "19999324055",
+      "instagram": null,
+      "telegram": null
+    },
+    {
+      "name": "M11",
+      "whatsapp": "1999740254",
       "instagram": null,
       "telegram": null
     }

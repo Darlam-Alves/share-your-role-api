@@ -1,3 +1,6 @@
 node_modules
 CLAUDE.md
 .env
+pr_description.md
+src/database/post_events_examples.json
+src/database/seed_events.sql

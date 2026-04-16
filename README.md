@@ -20,6 +20,16 @@ cd share-your-role-api
 npm install
 ```
 
+Para Linux - 
+```bash
+sudo apt install npm
+sudo apt install postgresql-14 postgresql-contrib
+sudo -u postgres psql
+CREATE USER darlam WITH PASSWORD 'sua_senha_aqui' SUPERUSER;
+CREATE DATABASE share_your_role;
+GRANT ALL PRIVILEGES ON DATABASE share_your_role TO darlam;
+\q
+```
 ### 3. Configure as variáveis de ambiente
 
 Copie o arquivo de exemplo e preencha os valores:

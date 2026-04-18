@@ -50,7 +50,10 @@ cp .env.example .env
 psql -U seu_usuario -c "CREATE DATABASE share_your_role;"
 psql -U seu_usuario -d share_your_role -f src/database/schema.sql
 ```
-
+Acessar seu usuário
+```bash
+psql -U seu_usuario -d share_your_role
+```
 Opcionalmente, popule o banco com dados de exemplo:
 
 ```bash

@@ -7,8 +7,25 @@
 
 -- Limpa eventos (CASCADE remove todas as tabelas dependentes)
 DELETE FROM events;
+-- Limpa usuários antigos para evitar conflito de ID (Cuidado: apaga tudo de users)
+-- Limpa a tabela para evitar erros de duplicidade
+DELETE FROM users CASCADE;
 
--- República Santa Casa (para Bagunsanta)
+INSERT INTO users (
+  id, 
+  name, 
+  email_personal, 
+  phone, 
+  password_hash, 
+  role, 
+  email_institutional_verified
+) VALUES
+  ('00000000-0000-0000-0000-000000000002', 'Darlam Alves', 'darlam@test.com', '19999999999', 'hash_fake_123', 'admin', true),
+  ('00000000-0000-0000-0000-000000000006', 'Larissa', 'larissa@test.com', '19988888888', 'hash_fake_123', 'institutional', true),
+  ('00000000-0000-0000-0000-000000000005', 'Diego', 'diego@test.com', '19977777777', 'hash_fake_123', 'institutional', true),
+  ('00000000-0000-0000-0000-000000000003', 'Katy', 'katy@test.com', '19966666666', 'hash_fake_123', 'institutional', true),
+  ('00000000-0000-0000-0000-000000000009', 'Professora', 'professora@test.com', '19955555555', 'hash_fake_123', 'admin', true);
+  
 INSERT INTO republics (id, name, city, instagram) VALUES
   ('10000000-0000-0000-0000-000000000003', 'República Santa Casa', 'Campinas', '@santacasa')
 ON CONFLICT (id) DO NOTHING;

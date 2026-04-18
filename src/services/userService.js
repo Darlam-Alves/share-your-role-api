@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const userRepository = require("../models/user");
 
 const SALT_ROUNDS = 10;
@@ -66,6 +67,52 @@ async function createUser(payload) {
   }
 }
 
+async function login(payload) {
+  const email = toOptionalTrimmedString(payload.email)?.toLowerCase();
+  const password = toOptionalTrimmedString(payload.password);
+
+  if (!email || !password) {
+    throw buildHttpError(400, "Email e senha são obrigatórios.");
+  }
+
+  // 1. Busca o usuário (usando a lógica de OR que você já tem no model)
+  const user = await userRepository.findByEmail(email);
+
+  if (!user) {
+    throw buildHttpError(401, "E-mail ou senha inválidos.");
+  }
+
+  // 2. Verifica a senha
+  const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
+
+  if (!isPasswordCorrect) {
+    throw buildHttpError(401, "E-mail ou senha inválidos.");
+  }
+
+  // 3. Gera o Token JWT
+  // Dica: use uma string segura no seu .env como JWT_SECRET
+  const token = jwt.sign(
+    { 
+      id: user.id, 
+      role: user.role, 
+      name: user.name 
+    }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: "7d" }
+  );
+
+  return {
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      email_institutional_verified: user.email_institutional_verified
+    }
+  };
+}
+
 module.exports = {
   createUser,
+  login
 };

@@ -72,6 +72,10 @@ npm run dev
 # Produção
 npm start
 ```
+```bash
+# ver dados inseridos na base 
+npx prisma studio
+```
 
 A API estará disponível em `http://localhost:3000`.
 

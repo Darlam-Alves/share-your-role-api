@@ -1,6 +1,10 @@
 -- ============================================================
 -- SEED — Eventos reais de São Carlos
 -- ============================================================
+-- Idempotente: apaga eventos do seed antes de reinserir.
+-- ON DELETE CASCADE cuida de event_location e event_promoters.
+DELETE FROM events WHERE id::text LIKE '30000000-0000-0000-0000-%';
+
 -- ============================================================
 -- EVENTS
 -- ============================================================
@@ -23,7 +27,7 @@ INSERT INTO events (
    'Banana Minamora', E'🍌💜 SAVE THE DATE 🍌💜\n09/04 tem encontro marcado na nossa casinha FAVORITA, e não é qualquer um…\nvem aí o: Namora na Quinta!!!!! 😍\nja deixamos o clima armado, agora é com vocês 😮‍💨🔥\n\nmais informações em breve, aguardem 🔄',
    '2026-04-09 22:00:00-03', '2026-04-10 05:00:00-03',
    '00000000-0000-0000-0000-000000000003',
-   '10000000-0000-0000-0000-000000000002',
+   NULL,
    'Byma', 'https://byma.com.br/event/69ca93ed2b7ae90004ec4bfd?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0AZhcHBfaWQMMjU2MjgxMDQwNTU4AAGnw3GqdItuBZdhw_i-vlRBjXRFubT5AJe5Ay4MZjB2Y-c4cMNeDjsfgkGW76o_aem_Me_odj0fq5gdeWK9vSzaaA&utm_id=97760_v0_s00_e0_tv3_a1dennhc8l4a3k_tp1', '@repminamorasc',
    'public'),
 
@@ -82,7 +86,7 @@ INSERT INTO events (
    'Banana Capitu', NULL,
    '2026-04-16 22:00:00-03', '2026-04-17 05:00:00-03',
    '00000000-0000-0000-0000-000000000003',
-   '10000000-0000-0000-0000-000000000002',
+   NULL,
    NULL, NULL, '@repcapitu',
    'public'),
 
@@ -140,7 +144,7 @@ INSERT INTO events (
   ('30000000-0000-0000-0000-000000000037',
    'Clandeco da Capitu', NULL,
    '2026-05-01 16:00:00-03', '2026-05-01 22:00:00-03',
-   '00000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000003', NULL,
    NULL, NULL, '@repcapitu', 'public'),
 
   -- 02/05 sáb — Rota Bar
@@ -294,7 +298,7 @@ INSERT INTO event_location (event_id, latitude, longitude, address, release_at) 
   ('30000000-0000-0000-0000-000000000034',
    -22.0050, -47.9100,
    'Rodovia Washington Luiz, S/N, KM 241, 13565-800, Jardim Guanabara, São Carlos, SP',
-   NULL);
+   NULL),
 
   -- Copa Civil — loc mockada
   ('30000000-0000-0000-0000-000000000036', -22.0087, -47.8909, 'São Carlos, SP', NULL),

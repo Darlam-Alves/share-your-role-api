@@ -8,7 +8,8 @@ const authRoutes = require("./routes/auth");
 
 const app = express();
 
-app.use(cors({ origin: "http://localhost:3000" }));
+// tive que  fazer isso para o frontend conseguir acessar a api
+app.use(cors({ origin: ["http://localhost:5173", "http://localhost:3000"] }));
 app.use(express.json());
 app.use(userRoutes);
 app.use(authRoutes);

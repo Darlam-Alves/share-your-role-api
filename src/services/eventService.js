@@ -259,4 +259,29 @@ async function getEventById(id) {
   };
 }
 
-module.exports = { createEvent, listEvents, getEventById };
+async function deleteEvent({ id, requesterUserId }) {
+  const eventId = toOptionalTrimmedString(id);
+  const userId = toOptionalTrimmedString(requesterUserId);
+
+  if (!eventId) {
+    throw buildHttpError(400, "Parâmetro id é obrigatório.");
+  }
+
+  if (!userId) {
+    throw buildHttpError(401, "Usuário autenticado é obrigatório.");
+  }
+
+  const event = await eventRepository.findOwnerById(eventId);
+
+  if (!event) {
+    throw buildHttpError(404, "Evento não encontrado.");
+  }
+
+  if (event.created_by_user_id !== userId) {
+    throw buildHttpError(403, "Apenas o usuário que criou o evento pode removê-lo.");
+  }
+
+  await eventRepository.removeById(eventId);
+}
+
+module.exports = { createEvent, listEvents, getEventById, deleteEvent };

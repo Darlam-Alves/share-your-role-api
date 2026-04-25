@@ -92,7 +92,7 @@ CREATE TABLE events (
   ticket_url               TEXT,
   instagram                TEXT CHECK (instagram IS NULL OR instagram ~ '^@[a-zA-Z0-9_.]{1,30}$'),
   visibility_type          visibility_type  NOT NULL DEFAULT 'public',
-  created_at               TIMESTAMPTZ      NOT NULL DEFAULT now(),
+  created_at               TIMESTAMPTZ      NOT NULL DEFAULT now()
 );
 
 -- Índice único case-insensitive — impede mesmo nome na mesma data independente de capitalização

@@ -73,4 +73,24 @@ async function getEventById(request, response) {
   }
 }
 
-module.exports = { createEvent, listEvents, getEventById };
+async function deleteEvent(request, response) {
+  const { id } = request.params;
+
+  try {
+    await eventService.deleteEvent({
+      id,
+      requesterUserId: request.user.id,
+    });
+
+    return response.status(204).send();
+  } catch (error) {
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({ message: error.message });
+    }
+
+    console.error("Erro ao remover evento:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
+module.exports = { createEvent, listEvents, getEventById, deleteEvent };

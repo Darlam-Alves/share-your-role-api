@@ -126,7 +126,7 @@ INSERT INTO events (
 
   -- 24/04 sex — Absinta-me
   ('30000000-0000-0000-0000-000000000034',
-   'Absinta-me', NULL,
+   'Absinta-me', E'🍻 Bebidas:\n\nChopp de Vinho\nBeats\nLicor 43\nBudweiser\nAbsinto\n🎤 Atrações:\n\nMC Pedrinho\nDJ GP da ZL\nDJ Blakes\nBraba da NBR\nInformações extras:\n\nEntrada liberada até 23h\nLevar documento com foto\nProibida entrada com bebida',
    '2026-04-24 22:00:00-03', '2026-04-25 10:00:00-03',
    '00000000-0000-0000-0000-000000000002', NULL,
    'Blacktag', 'https://blacktag.com.br/eventos/30215/absinta-me',
@@ -311,4 +311,3 @@ INSERT INTO event_location (event_id, latitude, longitude, address, release_at) 
 
 -- Sem localização: Arapuskush (0024), Sambohemia (0027), Me de Groselha (0030),
 --   SkyLine (0039), ARALOTUSNIGHT (0040), Underseth (0041), AEQ (0042), DKUsh (0043)
-

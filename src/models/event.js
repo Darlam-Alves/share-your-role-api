@@ -98,6 +98,7 @@ async function findById(id) {
     where: { id },
     select: {
       id: true,
+      created_by_user_id: true,
       name: true,
       description: true,
       date: true,
@@ -125,4 +126,21 @@ async function findById(id) {
   });
 }
 
-module.exports = { findRepublicMember, create, list, findById };
+async function findOwnerById(id) {
+  return prisma.events.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      created_by_user_id: true,
+    },
+  });
+}
+
+async function removeById(id) {
+  return prisma.events.delete({
+    where: { id },
+    select: { id: true },
+  });
+}
+
+module.exports = { findRepublicMember, create, list, findById, findOwnerById, removeById };

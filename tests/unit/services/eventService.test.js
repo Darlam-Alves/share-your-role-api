@@ -658,3 +658,52 @@ describe("eventService.listEvents", () => {
     });
   });
 });
+
+describe("eventService.deleteEvent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "uuid-user-123",
+    });
+    eventRepository.removeById.mockResolvedValue({ id: "uuid-event-123" });
+  });
+
+  test("lança erro 400 quando id não é enviado", async () => {
+    await expect(
+      eventService.deleteEvent({ requesterUserId: "uuid-user-123" })
+    ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("id") });
+  });
+
+  test("lança erro 401 quando requesterUserId não é enviado", async () => {
+    await expect(
+      eventService.deleteEvent({ id: "uuid-event-123" })
+    ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  test("lança erro 404 quando evento não existe", async () => {
+    eventRepository.findOwnerById.mockResolvedValue(null);
+
+    await expect(
+      eventService.deleteEvent({ id: "uuid-event-123", requesterUserId: "uuid-user-123" })
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test("lança erro 403 quando usuário não criou o evento", async () => {
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "outro-user",
+    });
+
+    await expect(
+      eventService.deleteEvent({ id: "uuid-event-123", requesterUserId: "uuid-user-123" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(eventRepository.removeById).not.toHaveBeenCalled();
+  });
+
+  test("remove o evento quando usuário é o criador", async () => {
+    await eventService.deleteEvent({ id: "uuid-event-123", requesterUserId: "uuid-user-123" });
+
+    expect(eventRepository.removeById).toHaveBeenCalledWith("uuid-event-123");
+  });
+});

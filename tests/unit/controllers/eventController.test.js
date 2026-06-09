@@ -3,14 +3,15 @@ const eventService = require("../../../src/services/eventService");
 
 jest.mock("../../../src/services/eventService");
 
-function makeReq({ body = {}, query = {}, user = {} } = {}) {
-  return { body, query, user };
+function makeReq({ body = {}, params = {}, query = {}, user = {} } = {}) {
+  return { body, params, query, user };
 }
 
 function makeRes() {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
+  res.send = jest.fn().mockReturnValue(res);
   return res;
 }
 
@@ -263,5 +264,59 @@ describe("eventController.listEvents", () => {
         expect.objectContaining({ message: expect.any(String) })
       );
     });
+  });
+});
+
+describe("eventController.deleteEvent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    eventService.deleteEvent.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("retorna 204 quando remove o evento", async () => {
+    const req = makeReq({ params: { id: "uuid-event-123" }, user: VALID_USER });
+    const res = makeRes();
+
+    await eventController.deleteEvent(req, res);
+
+    expect(eventService.deleteEvent).toHaveBeenCalledWith({
+      id: "uuid-event-123",
+      requesterUserId: "uuid-user-123",
+    });
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(res.send).toHaveBeenCalled();
+  });
+
+  test("retorna 403 quando o service nega permissão", async () => {
+    const error = new Error("Apenas o usuário que criou o evento pode removê-lo.");
+    error.statusCode = 403;
+    eventService.deleteEvent.mockRejectedValue(error);
+
+    const req = makeReq({ params: { id: "uuid-event-123" }, user: VALID_USER });
+    const res = makeRes();
+
+    await eventController.deleteEvent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ message: error.message });
+  });
+
+  test("retorna 500 quando o service lança erro sem statusCode", async () => {
+    eventService.deleteEvent.mockRejectedValue(new Error("Connection refused"));
+
+    const req = makeReq({ params: { id: "uuid-event-123" }, user: VALID_USER });
+    const res = makeRes();
+
+    await eventController.deleteEvent(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.any(String) })
+    );
   });
 });

@@ -73,6 +73,47 @@ async function getEventById(request, response) {
   }
 }
 
+async function updateEvent(request, response) {
+  const { id } = request.params;
+  const {
+    name,
+    description,
+    date,
+    ended_at,
+    visibility_type,
+    instagram,
+    ticket_url,
+    location,
+    promoters,
+  } = request.body || {};
+
+  try {
+    const event = await eventService.updateEvent({
+      id,
+      name,
+      description,
+      date,
+      ended_at,
+      visibility_type,
+      instagram,
+      ticket_url,
+      location,
+      promoters,
+      requesterUserId: request.user.id,
+      user_role: request.user.role,
+    });
+
+    return response.status(200).json(event);
+  } catch (error) {
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({ message: error.message });
+    }
+
+    console.error("Erro ao editar evento:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
 async function deleteEvent(request, response) {
   const { id } = request.params;
 
@@ -93,4 +134,4 @@ async function deleteEvent(request, response) {
   }
 }
 
-module.exports = { createEvent, listEvents, getEventById, deleteEvent };
+module.exports = { createEvent, listEvents, getEventById, updateEvent, deleteEvent };

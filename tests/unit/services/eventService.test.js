@@ -743,6 +743,118 @@ describe("eventService.listEvents", () => {
   });
 });
 
+describe("eventService.updateEvent", () => {
+  const VALID_UPDATE_PAYLOAD = {
+    id: "uuid-event-123",
+    requesterUserId: "uuid-user-123",
+    name: "Festa Atualizada",
+    date: "2026-04-10T22:00:00Z",
+    ended_at: "2026-04-11T04:00:00Z",
+    visibility_type: "public",
+    user_role: "institutional",
+    instagram: "@festaatualizada",
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-01T12:00:00Z"));
+    jest.clearAllMocks();
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "uuid-user-123",
+    });
+    eventRepository.updateById.mockResolvedValue(CREATED_EVENT);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("lança erro 400 quando id não é enviado", async () => {
+    const { id, ...payload } = VALID_UPDATE_PAYLOAD;
+
+    await expect(eventService.updateEvent(payload)).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("id"),
+    });
+  });
+
+  test("lança erro 401 quando requesterUserId não é enviado", async () => {
+    const { requesterUserId, ...payload } = VALID_UPDATE_PAYLOAD;
+
+    await expect(eventService.updateEvent(payload)).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+
+  test("lança erro 404 quando evento não existe", async () => {
+    eventRepository.findOwnerById.mockResolvedValue(null);
+
+    await expect(eventService.updateEvent(VALID_UPDATE_PAYLOAD)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  test("lança erro 403 quando usuário não criou o evento", async () => {
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "outro-user",
+    });
+
+    await expect(eventService.updateEvent(VALID_UPDATE_PAYLOAD)).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    expect(eventRepository.updateById).not.toHaveBeenCalled();
+  });
+
+  test("lança erro 403 quando user_role não pode alterar eventos", async () => {
+    await expect(
+      eventService.updateEvent({ ...VALID_UPDATE_PAYLOAD, user_role: "public" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test("lança erro 400 quando nova data está no passado", async () => {
+    await expect(
+      eventService.updateEvent({
+        ...VALID_UPDATE_PAYLOAD,
+        date: "2026-04-01T11:59:59Z",
+        ended_at: "2026-04-01T15:00:00Z",
+      })
+    ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("futuros") });
+  });
+
+  test("atualiza o evento quando usuário é o criador", async () => {
+    await eventService.updateEvent({
+      ...VALID_UPDATE_PAYLOAD,
+      description: "  Nova descricao  ",
+      ticket_url: "https://sympla.com.br/evento",
+      promoters: [{ name: "João", whatsapp: "(19) 99999-9999" }],
+    });
+
+    expect(eventRepository.updateById).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "uuid-event-123",
+        name: "Festa Atualizada",
+        description: "Nova descricao",
+        ticketPlatform: "Sympla",
+        promoters: expect.arrayContaining([
+          expect.objectContaining({ whatsapp: "19999999999" }),
+        ]),
+      })
+    );
+  });
+
+  test("lança erro 409 quando atualização viola unicidade de nome e data", async () => {
+    const prismaError = new Error("Unique constraint failed");
+    prismaError.code = "P2002";
+    eventRepository.updateById.mockRejectedValue(prismaError);
+
+    await expect(eventService.updateEvent(VALID_UPDATE_PAYLOAD)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("nome"),
+    });
+  });
+});
+
 describe("eventService.deleteEvent", () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -78,8 +78,7 @@ function buildHttpError(statusCode, message) {
   return error;
 }
 
-async function createEvent(payload) {
-  // Normalize
+function normalizeEventPayload(payload, { requireCreator = false, permissionAction = "criar" } = {}) {
   const name = toOptionalTrimmedString(payload.name);
   const description = toOptionalTrimmedString(payload.description);
   const visibilityType = toOptionalTrimmedString(payload.visibility_type);
@@ -126,21 +125,13 @@ async function createEvent(payload) {
     );
   }
 
-  if (!createdByUserId) {
+  if (requireCreator && !createdByUserId) {
     throw buildHttpError(400, "Campo created_by_user_id é obrigatório.");
   }
 
   const userRole = toOptionalTrimmedString(payload.user_role);
   if (!ALLOWED_ROLES.includes(userRole)) {
-    throw buildHttpError(403, "Apenas usuários institucionais ou administradores podem criar eventos.");
-  }
-
-  // Validate republic membership if provided
-  if (createdByRepublicId) {
-    const member = await eventRepository.findRepublicMember(createdByUserId, createdByRepublicId);
-    if (!member) {
-      throw buildHttpError(403, "Usuário não é membro da república informada.");
-    }
+    throw buildHttpError(403, `Apenas usuários institucionais ou administradores podem ${permissionAction} eventos.`);
   }
 
   // Normalize location
@@ -192,36 +183,57 @@ async function createEvent(payload) {
     );
   }
 
-  try {
-    return await eventRepository.create({
-      name,
-      description,
-      date: parsedDate,
-      endedAt,
-      visibilityType,
-      instagram,
-      ticketPlatform: deriveTicketPlatform(ticketUrl),
-      ticketUrl,
-      createdByUserId,
-      createdByRepublicId,
-      location,
-      promoters,
-    });
-  } catch (error) {
-    if (error?.code === "P2002") {
-      const target = error.meta?.target ?? [];
-      if (target.includes("whatsapp")) {
-        throw buildHttpError(409, "Esse WhatsApp já está cadastrado como promoter neste evento.");
-      }
-      if (target.includes("instagram")) {
-        throw buildHttpError(409, "Esse Instagram já está cadastrado como promoter neste evento.");
-      }
-      if (target.includes("telegram")) {
-        throw buildHttpError(409, "Esse Telegram já está cadastrado como promoter neste evento.");
-      }
-      throw buildHttpError(409, "Já existe um evento com esse nome nessa data.");
+  return {
+    name,
+    description,
+    date: parsedDate,
+    endedAt,
+    visibilityType,
+    instagram,
+    ticketPlatform: deriveTicketPlatform(ticketUrl),
+    ticketUrl,
+    createdByUserId,
+    createdByRepublicId,
+    location,
+    promoters,
+  };
+}
+
+function handleEventWriteError(error) {
+  if (error?.code === "P2002") {
+    const target = error.meta?.target ?? [];
+    if (target.includes("whatsapp")) {
+      throw buildHttpError(409, "Esse WhatsApp já está cadastrado como promoter neste evento.");
     }
-    throw error;
+    if (target.includes("instagram")) {
+      throw buildHttpError(409, "Esse Instagram já está cadastrado como promoter neste evento.");
+    }
+    if (target.includes("telegram")) {
+      throw buildHttpError(409, "Esse Telegram já está cadastrado como promoter neste evento.");
+    }
+    throw buildHttpError(409, "Já existe um evento com esse nome nessa data.");
+  }
+  throw error;
+}
+
+async function createEvent(payload) {
+  const eventData = normalizeEventPayload(payload, { requireCreator: true });
+
+  // Validate republic membership if provided
+  if (eventData.createdByRepublicId) {
+    const member = await eventRepository.findRepublicMember(
+      eventData.createdByUserId,
+      eventData.createdByRepublicId
+    );
+    if (!member) {
+      throw buildHttpError(403, "Usuário não é membro da república informada.");
+    }
+  }
+
+  try {
+    return await eventRepository.create(eventData);
+  } catch (error) {
+    handleEventWriteError(error);
   }
 }
 
@@ -316,4 +328,40 @@ async function deleteEvent({ id, requesterUserId }) {
   await eventRepository.removeById(eventId);
 }
 
-module.exports = { createEvent, listEvents, getEventById, deleteEvent };
+async function updateEvent(payload) {
+  const eventId = toOptionalTrimmedString(payload.id);
+  const userId = toOptionalTrimmedString(payload.requesterUserId);
+
+  if (!eventId) {
+    throw buildHttpError(400, "Parâmetro id é obrigatório.");
+  }
+
+  if (!userId) {
+    throw buildHttpError(401, "Usuário autenticado é obrigatório.");
+  }
+
+  const event = await eventRepository.findOwnerById(eventId);
+
+  if (!event) {
+    throw buildHttpError(404, "Evento não encontrado.");
+  }
+
+  if (event.created_by_user_id !== userId) {
+    throw buildHttpError(403, "Apenas o usuário que criou o evento pode editá-lo.");
+  }
+
+  const { createdByUserId, createdByRepublicId, ...eventData } = normalizeEventPayload(payload, {
+    permissionAction: "alterar",
+  });
+
+  try {
+    return await eventRepository.updateById({
+      id: eventId,
+      ...eventData,
+    });
+  } catch (error) {
+    handleEventWriteError(error);
+  }
+}
+
+module.exports = { createEvent, listEvents, getEventById, deleteEvent, updateEvent };

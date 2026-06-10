@@ -136,6 +136,76 @@ async function findOwnerById(id) {
   });
 }
 
+async function updateById({
+  id,
+  name,
+  description,
+  date,
+  endedAt,
+  ticketPlatform,
+  ticketUrl,
+  instagram,
+  visibilityType,
+  location,
+  promoters,
+}) {
+  return prisma.$transaction(async (tx) => {
+    const event = await tx.events.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        date,
+        ended_at: endedAt,
+        ticket_platform: ticketPlatform,
+        ticket_url: ticketUrl,
+        instagram,
+        visibility_type: visibilityType,
+      },
+    });
+
+    await tx.event_location.deleteMany({
+      where: { event_id: id },
+    });
+
+    let eventLocation = null;
+    if (location) {
+      eventLocation = await tx.event_location.create({
+        data: {
+          event_id: id,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          address: location.address ?? null,
+          release_at: location.release_at ?? null,
+        },
+      });
+    }
+
+    await tx.event_promoters.deleteMany({
+      where: { event_id: id },
+    });
+
+    let eventPromoters = [];
+    if (promoters && promoters.length > 0) {
+      await tx.event_promoters.createMany({
+        data: promoters.map((p) => ({
+          event_id: id,
+          name: p.name,
+          whatsapp: p.whatsapp ?? null,
+          instagram: p.instagram ?? null,
+          telegram: p.telegram ?? null,
+        })),
+      });
+
+      eventPromoters = await tx.event_promoters.findMany({
+        where: { event_id: id },
+      });
+    }
+
+    return { ...event, location: eventLocation, promoters: eventPromoters };
+  });
+}
+
 async function removeById(id) {
   return prisma.events.delete({
     where: { id },
@@ -143,4 +213,4 @@ async function removeById(id) {
   });
 }
 
-module.exports = { findRepublicMember, create, list, findById, findOwnerById, removeById };
+module.exports = { findRepublicMember, create, list, findById, findOwnerById, updateById, removeById };

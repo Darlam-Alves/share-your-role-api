@@ -14,6 +14,18 @@ function toOptionalTrimmedString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function getSessionRole(user, loginEmail) {
+  if (user.role === "admin") return "admin";
+
+  const institutionalEmail = toOptionalTrimmedString(user.email_institutional)?.toLowerCase();
+
+  if (user.role === "institutional" && loginEmail === institutionalEmail) {
+    return "institutional";
+  }
+
+  return "public";
+}
+
 async function login(payload) {
   const email = toOptionalTrimmedString(payload.email)?.toLowerCase();
   const password = toOptionalTrimmedString(payload.password);
@@ -32,17 +44,19 @@ async function login(payload) {
     throw buildHttpError(401, "Email ou senha inválidos.");
   }
 
+  const sessionRole = getSessionRole(user, email);
+
   const token = jwt.sign(
     {
       id: user.id,
-      role: user.role,
+      role: sessionRole,
       email_institutional_verified: user.email_institutional_verified,
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
 
-  return { token, user: { id: user.id, name: user.name, role: user.role } };
+  return { token, user: { id: user.id, name: user.name, role: sessionRole } };
 }
 
 module.exports = { login };

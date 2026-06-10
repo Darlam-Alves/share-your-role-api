@@ -19,6 +19,18 @@ function buildHttpError(statusCode, message) {
   return error;
 }
 
+function getSessionRole(user, loginEmail) {
+  if (user.role === "admin") return "admin";
+
+  const institutionalEmail = toOptionalTrimmedString(user.email_institutional)?.toLowerCase();
+
+  if (user.role === "institutional" && loginEmail === institutionalEmail) {
+    return "institutional";
+  }
+
+  return "public";
+}
+
 async function createUser(payload) {
   const name = toOptionalTrimmedString(payload.name);
   const phone = toOptionalTrimmedString(payload.phone);
@@ -89,12 +101,14 @@ async function login(payload) {
     throw buildHttpError(401, "E-mail ou senha inválidos.");
   }
 
+  const sessionRole = getSessionRole(user, email);
+
   // 3. Gera o Token JWT
   // Dica: use uma string segura no seu .env como JWT_SECRET
   const token = jwt.sign(
     { 
       id: user.id, 
-      role: user.role, 
+      role: sessionRole,
       name: user.name 
     }, 
     process.env.JWT_SECRET, 
@@ -106,7 +120,7 @@ async function login(payload) {
     user: {
       id: user.id,
       name: user.name,
-      role: user.role,
+      role: sessionRole,
       email_institutional_verified: user.email_institutional_verified
     }
   };

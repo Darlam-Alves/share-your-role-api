@@ -78,6 +78,8 @@ async function findByEmail(email) {
       id: true,
       name: true,
       role: true,
+      email_personal: true,
+      email_institutional: true,
       email_institutional_verified: true,
       password_hash: true,
     },

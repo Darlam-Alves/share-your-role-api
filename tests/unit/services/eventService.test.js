@@ -31,9 +31,14 @@ const CREATED_EVENT = {
 
 describe("eventService.createEvent", () => {
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-01T12:00:00Z"));
     jest.clearAllMocks();
     eventRepository.findRepublicMember.mockResolvedValue(null);
     eventRepository.create.mockResolvedValue(CREATED_EVENT);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe("validação de campos obrigatórios", () => {
@@ -89,6 +94,26 @@ describe("eventService.createEvent", () => {
       await expect(
         eventService.createEvent({ ...VALID_PAYLOAD, date: "data-invalida" })
       ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    test("lança erro 400 quando date está no passado", async () => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          date: "2026-04-01T11:59:59Z",
+          ended_at: "2026-04-01T15:00:00Z",
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("futuros") });
+    });
+
+    test("lança erro 400 quando date é igual ao horário atual", async () => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          date: "2026-04-01T12:00:00Z",
+          ended_at: "2026-04-01T15:00:00Z",
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("futuros") });
     });
 
     test("aceita date no formato ISO 8601", async () => {
@@ -371,6 +396,36 @@ describe("eventService.createEvent", () => {
       );
     });
 
+    test("normaliza whatsapp de promoter para apenas dígitos", async () => {
+      await eventService.createEvent({
+        ...VALID_PAYLOAD,
+        promoters: [{ name: "João", whatsapp: "(19) 99999-9999" }],
+      });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promoters: expect.arrayContaining([
+            expect.objectContaining({ whatsapp: "19999999999" }),
+          ]),
+        })
+      );
+    });
+
+    test("normaliza telegram de promoter para lowercase e mantém o @", async () => {
+      await eventService.createEvent({
+        ...VALID_PAYLOAD,
+        promoters: [{ name: "João", telegram: "JOAO_PROMOTER" }],
+      });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promoters: expect.arrayContaining([
+            expect.objectContaining({ telegram: "@joao_promoter" }),
+          ]),
+        })
+      );
+    });
+
     test("converte description vazia para null", async () => {
       await eventService.createEvent({ ...VALID_PAYLOAD, description: "   " });
 
@@ -422,6 +477,35 @@ describe("eventService.createEvent", () => {
       expect(eventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ instagram: expected })
       );
+    });
+  });
+
+  describe("validação do formato do whatsapp e telegram", () => {
+    test.each([
+      ["com menos de 10 dígitos", "199999999"],
+      ["com mais de 13 dígitos", "12345678901234"],
+      ["sem nenhum dígito", "telefone"],
+    ])("lança erro 400 quando whatsapp é %s", async (_, whatsapp) => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          promoters: [{ name: "João", whatsapp }],
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("WhatsApp") });
+    });
+
+    test.each([
+      ["com menos de 5 caracteres", "joao"],
+      ["com caracteres inválidos", "@joao-promoter"],
+      ["somente @", "@"],
+      ["com mais de 32 caracteres", "a".repeat(33)],
+    ])("lança erro 400 quando telegram é %s", async (_, telegram) => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          promoters: [{ name: "João", telegram }],
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("Telegram") });
     });
   });
 

@@ -30,6 +30,8 @@ function toOptionalTrimmedString(value) {
 }
 
 const INSTAGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_.]{1,30}$/;
+const WHATSAPP_DIGITS_REGEX = /^\d{10,13}$/;
+const TELEGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
 
 function normalizeInstagram(value) {
   const raw = toOptionalTrimmedString(value);
@@ -39,6 +41,32 @@ function normalizeInstagram(value) {
     throw buildHttpError(
       400,
       "Instagram inválido. Use o formato @usuario (letras, números, pontos e underscores, até 30 caracteres)."
+    );
+  }
+  return handle.toLowerCase();
+}
+
+function normalizeWhatsapp(value) {
+  const raw = toOptionalTrimmedString(value);
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (!WHATSAPP_DIGITS_REGEX.test(digits)) {
+    throw buildHttpError(
+      400,
+      "WhatsApp inválido. Use DDD + número, com 10 a 13 dígitos."
+    );
+  }
+  return digits;
+}
+
+function normalizeTelegram(value) {
+  const raw = toOptionalTrimmedString(value);
+  if (!raw) return null;
+  const handle = raw.startsWith("@") ? raw : `@${raw}`;
+  if (!TELEGRAM_HANDLE_REGEX.test(handle)) {
+    throw buildHttpError(
+      400,
+      "Telegram inválido. Use @usuario com letras, números ou underscore, de 5 a 32 caracteres."
     );
   }
   return handle.toLowerCase();
@@ -70,6 +98,10 @@ async function createEvent(payload) {
   const parsedDate = new Date(payload.date);
   if (isNaN(parsedDate.getTime())) {
     throw buildHttpError(400, "Campo date deve ser uma data válida");
+  }
+
+  if (parsedDate <= new Date()) {
+    throw buildHttpError(400, "O evento deve começar em uma data e horário futuros.");
   }
 
   if (endedAt !== null) {
@@ -134,9 +166,9 @@ async function createEvent(payload) {
     }
     promoters = payload.promoters.map((p) => ({
       name: toOptionalTrimmedString(p.name),
-      whatsapp: toOptionalTrimmedString(p.whatsapp),
+      whatsapp: normalizeWhatsapp(p.whatsapp),
       instagram: normalizeInstagram(p.instagram),
-      telegram: toOptionalTrimmedString(p.telegram),
+      telegram: normalizeTelegram(p.telegram),
     }));
 
     if (promoters.some((p) => !p.name)) {

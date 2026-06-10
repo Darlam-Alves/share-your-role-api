@@ -13,6 +13,8 @@ const VALID_PAYLOAD = {
   instagram: "@festarepublica",
 };
 
+const VALID_IMAGE_URL = "data:image/png;base64,aGVsbG8=";
+
 const CREATED_EVENT = {
   id: "uuid-event-123",
   name: "Festa do Republica",
@@ -365,6 +367,14 @@ describe("eventService.createEvent", () => {
       );
     });
 
+    test("repassa a imagem do evento quando enviada", async () => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, image_url: VALID_IMAGE_URL });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ imageUrl: VALID_IMAGE_URL })
+      );
+    });
+
     test("converte instagram para lowercase e mantém o @", async () => {
       await eventService.createEvent({ ...VALID_PAYLOAD, instagram: "@FESTAREPUBLICA" });
 
@@ -434,6 +444,14 @@ describe("eventService.createEvent", () => {
       );
     });
 
+    test("converte imagem vazia para null", async () => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, image_url: "   " });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ imageUrl: null })
+      );
+    });
+
     test("passa a data convertida para objeto Date", async () => {
       await eventService.createEvent(VALID_PAYLOAD);
 
@@ -477,6 +495,26 @@ describe("eventService.createEvent", () => {
       expect(eventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ instagram: expected })
       );
+    });
+  });
+
+  describe("validação da imagem do evento", () => {
+    test("lança erro 400 quando imagem não é PNG, JPG ou WEBP", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, image_url: "data:image/gif;base64,aGVsbG8=" })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("Imagem"),
+      });
+    });
+
+    test("lança erro 400 quando imagem é grande demais", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, image_url: `data:image/png;base64,${"a".repeat(3_000_000)}` })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("imagem"),
+      });
     });
   });
 
@@ -826,6 +864,7 @@ describe("eventService.updateEvent", () => {
     await eventService.updateEvent({
       ...VALID_UPDATE_PAYLOAD,
       description: "  Nova descricao  ",
+      image_url: VALID_IMAGE_URL,
       ticket_url: "https://sympla.com.br/evento",
       promoters: [{ name: "João", whatsapp: "(19) 99999-9999" }],
     });
@@ -835,6 +874,7 @@ describe("eventService.updateEvent", () => {
         id: "uuid-event-123",
         name: "Festa Atualizada",
         description: "Nova descricao",
+        imageUrl: VALID_IMAGE_URL,
         ticketPlatform: "Sympla",
         promoters: expect.arrayContaining([
           expect.objectContaining({ whatsapp: "19999999999" }),

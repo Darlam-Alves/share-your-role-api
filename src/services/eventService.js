@@ -1,4 +1,6 @@
 const eventRepository = require("../models/event");
+const userRepository = require("../models/user");
+const { normalizeCpf } = require("./userService");
 
 const VALID_VISIBILITY_TYPES = ["public", "institutional_only", "private"];
 const ALLOWED_ROLES = ["institutional", "admin"];
@@ -32,6 +34,8 @@ function toOptionalTrimmedString(value) {
 const INSTAGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_.]{1,30}$/;
 const WHATSAPP_DIGITS_REGEX = /^\d{10,13}$/;
 const TELEGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
+const EVENT_IMAGE_DATA_URL_REGEX = /^data:image\/(jpeg|jpg|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
+const MAX_EVENT_IMAGE_URL_LENGTH = 3_000_000;
 
 function normalizeInstagram(value) {
   const raw = toOptionalTrimmedString(value);
@@ -72,6 +76,24 @@ function normalizeTelegram(value) {
   return handle.toLowerCase();
 }
 
+function normalizeEventImageUrl(value) {
+  const imageUrl = toOptionalTrimmedString(value);
+  if (!imageUrl) return null;
+
+  if (imageUrl.length > MAX_EVENT_IMAGE_URL_LENGTH) {
+    throw buildHttpError(400, "A imagem do evento deve ter no máximo 2 MB.");
+  }
+
+  const isDataUrl = EVENT_IMAGE_DATA_URL_REGEX.test(imageUrl);
+  const isRemoteUrl = /^https?:\/\/.+/i.test(imageUrl);
+
+  if (!isDataUrl && !isRemoteUrl) {
+    throw buildHttpError(400, "Imagem do evento inválida. Use PNG, JPG ou WEBP.");
+  }
+
+  return imageUrl;
+}
+
 function buildHttpError(statusCode, message) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -81,6 +103,7 @@ function buildHttpError(statusCode, message) {
 function normalizeEventPayload(payload, { requireCreator = false, permissionAction = "criar" } = {}) {
   const name = toOptionalTrimmedString(payload.name);
   const description = toOptionalTrimmedString(payload.description);
+  const imageUrl = normalizeEventImageUrl(payload.image_url);
   const visibilityType = toOptionalTrimmedString(payload.visibility_type);
   const instagram = normalizeInstagram(payload.instagram);
   const ticketUrl = toOptionalTrimmedString(payload.ticket_url);
@@ -186,6 +209,7 @@ function normalizeEventPayload(payload, { requireCreator = false, permissionActi
   return {
     name,
     description,
+    imageUrl,
     date: parsedDate,
     endedAt,
     visibilityType,
@@ -218,6 +242,28 @@ function handleEventWriteError(error) {
 
 async function createEvent(payload) {
   const eventData = normalizeEventPayload(payload, { requireCreator: true });
+  const creator = await userRepository.findById(eventData.createdByUserId);
+
+  if (!creator) {
+    throw buildHttpError(404, "Usuário não encontrado.");
+  }
+
+  const cpf = payload.cpf ? normalizeCpf(payload.cpf) : creator.cpf;
+  if (!cpf) {
+    throw buildHttpError(400, "CPF é obrigatório para cadastrar evento.");
+  }
+
+  if (payload.cpf && cpf !== creator.cpf) {
+    try {
+      await userRepository.updateCpf(eventData.createdByUserId, cpf);
+    } catch (error) {
+      if (error?.code === "P2002") {
+        throw buildHttpError(409, "CPF já cadastrado para outro usuário.");
+      }
+
+      throw error;
+    }
+  }
 
   // Validate republic membership if provided
   if (eventData.createdByRepublicId) {
@@ -281,6 +327,9 @@ async function getEventById(id) {
   }
 
   const { event_location, event_promoters, created_by_user, ...rest } = event;
+  const organizerSalesCount = created_by_user?.id
+    ? await userRepository.countCompletedSalesByUserId(created_by_user.id)
+    : 0;
 
   const now = new Date();
   let location = null;
@@ -297,7 +346,9 @@ async function getEventById(id) {
 
   return {
     ...rest,
-    organized_by: created_by_user,
+    organized_by: created_by_user
+      ? { ...created_by_user, sales_count: organizerSalesCount }
+      : null,
     location,
     promoters: event_promoters,
   };
@@ -364,4 +415,107 @@ async function updateEvent(payload) {
   }
 }
 
-module.exports = { createEvent, listEvents, getEventById, deleteEvent, updateEvent };
+function normalizeResalePayload(payload) {
+  const price = Number(payload.price);
+  const quantity = Number(payload.quantity);
+
+  if (!Number.isFinite(price) || price <= 0) {
+    throw buildHttpError(400, "Preço da revenda deve ser maior que zero.");
+  }
+
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+    throw buildHttpError(400, "Quantidade da revenda deve ser um número inteiro entre 1 e 10.");
+  }
+
+  return {
+    price,
+    quantity,
+  };
+}
+
+async function serializeEventResale(resale) {
+  const salesCount = resale.user?.id
+    ? await userRepository.countCompletedSalesByUserId(resale.user.id)
+    : 0;
+
+  const { user, ...rest } = resale;
+  return {
+    ...rest,
+    price: Number(rest.price),
+    seller: user
+      ? {
+          ...user,
+          sales_count: salesCount,
+        }
+      : null,
+  };
+}
+
+async function listEventResales(eventId) {
+  const id = toOptionalTrimmedString(eventId);
+  if (!id) {
+    throw buildHttpError(400, "Parâmetro id é obrigatório.");
+  }
+
+  const event = await eventRepository.findOwnerById(id);
+  if (!event) {
+    throw buildHttpError(404, "Evento não encontrado.");
+  }
+
+  const resales = await eventRepository.listResalesByEventId(id);
+  return Promise.all(resales.map(serializeEventResale));
+}
+
+async function createEventResale(payload) {
+  const eventId = toOptionalTrimmedString(payload.eventId);
+  const userId = toOptionalTrimmedString(payload.requesterUserId);
+
+  if (!eventId) {
+    throw buildHttpError(400, "Parâmetro id é obrigatório.");
+  }
+
+  if (!userId) {
+    throw buildHttpError(401, "Usuário autenticado é obrigatório.");
+  }
+
+  const event = await eventRepository.findOwnerById(eventId);
+  if (!event) {
+    throw buildHttpError(404, "Evento não encontrado.");
+  }
+
+  const profile = await userRepository.findPublicProfileById(userId);
+  if (!profile) {
+    throw buildHttpError(404, "Usuário não encontrado.");
+  }
+
+  const hasContact =
+    Boolean(profile.resale_whatsapp) ||
+    Boolean(profile.resale_instagram) ||
+    Boolean(profile.resale_telegram);
+
+  if (!hasContact) {
+    throw buildHttpError(
+      400,
+      "Cadastre WhatsApp, Instagram ou Telegram no perfil antes de anunciar revenda."
+    );
+  }
+
+  const resaleData = normalizeResalePayload(payload);
+  const resale = await eventRepository.createResale({
+    eventId,
+    userId,
+    ...resaleData,
+  });
+
+  return serializeEventResale(resale);
+}
+
+module.exports = {
+  createEvent,
+  listEvents,
+  getEventById,
+  deleteEvent,
+  updateEvent,
+  listEventResales,
+  createEventResale,
+};

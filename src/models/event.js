@@ -12,6 +12,7 @@ async function findRepublicMember(userId, republicId) {
 async function create({
   name,
   description,
+  imageUrl,
   date,
   endedAt,
   createdByUserId,
@@ -28,6 +29,7 @@ async function create({
       data: {
         name,
         description,
+        image_url: imageUrl,
         date,
         ended_at: endedAt,
         created_by_user_id: createdByUserId,
@@ -85,6 +87,7 @@ async function list({ startDate, endDate, visibilityTypes }) {
     select: {
       id: true,
       name: true,
+      image_url: true,
       date: true,
       ended_at: true,
       visibility_type: true,
@@ -101,6 +104,7 @@ async function findById(id) {
       created_by_user_id: true,
       name: true,
       description: true,
+      image_url: true,
       date: true,
       ended_at: true,
       visibility_type: true,
@@ -109,6 +113,7 @@ async function findById(id) {
       ticket_url: true,
       created_by_user: {
         select: {
+          id: true,
           name: true,
         },
       },
@@ -140,6 +145,7 @@ async function updateById({
   id,
   name,
   description,
+  imageUrl,
   date,
   endedAt,
   ticketPlatform,
@@ -155,6 +161,7 @@ async function updateById({
       data: {
         name,
         description,
+        image_url: imageUrl,
         date,
         ended_at: endedAt,
         ticket_platform: ticketPlatform,
@@ -213,4 +220,73 @@ async function removeById(id) {
   });
 }
 
-module.exports = { findRepublicMember, create, list, findById, findOwnerById, updateById, removeById };
+async function listResalesByEventId(eventId) {
+  return prisma.sellers.findMany({
+    where: {
+      event_id: eventId,
+      status: "open",
+    },
+    select: {
+      id: true,
+      price: true,
+      quantity: true,
+      status: true,
+      created_at: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          profile_image_url: true,
+          resale_whatsapp: true,
+          resale_instagram: true,
+          resale_telegram: true,
+        },
+      },
+    },
+    orderBy: [
+      { price: "asc" },
+      { created_at: "asc" },
+    ],
+  });
+}
+
+async function createResale({ eventId, userId, price, quantity }) {
+  return prisma.sellers.create({
+    data: {
+      event_id: eventId,
+      user_id: userId,
+      price,
+      quantity,
+      status: "open",
+    },
+    select: {
+      id: true,
+      price: true,
+      quantity: true,
+      status: true,
+      created_at: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          profile_image_url: true,
+          resale_whatsapp: true,
+          resale_instagram: true,
+          resale_telegram: true,
+        },
+      },
+    },
+  });
+}
+
+module.exports = {
+  findRepublicMember,
+  create,
+  list,
+  findById,
+  findOwnerById,
+  updateById,
+  removeById,
+  listResalesByEventId,
+  createResale,
+};

@@ -39,6 +39,8 @@ const VALID_BODY = {
   visibility_type: "public",
 };
 
+const VALID_IMAGE_URL = "data:image/png;base64,aGVsbG8=";
+
 describe("eventController.createEvent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -80,6 +82,7 @@ describe("eventController.createEvent", () => {
       const body = {
         ...VALID_BODY,
         description: "Evento anual da república",
+        image_url: VALID_IMAGE_URL,
         instagram: "festarepublica",
         ticket_platform: "Sympla",
         ticket_url: "https://sympla.com.br/festa",
@@ -95,6 +98,7 @@ describe("eventController.createEvent", () => {
       expect(eventService.createEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           description: "Evento anual da república",
+          image_url: VALID_IMAGE_URL,
           instagram: "festarepublica",
           created_by_republic_id: "uuid-republic-456",
           location: { latitude: -23.5, longitude: -46.6 },
@@ -292,6 +296,7 @@ describe("eventController.updateEvent", () => {
     const body = {
       ...VALID_BODY,
       ended_at: "2026-04-11T04:00:00Z",
+      image_url: VALID_IMAGE_URL,
       instagram: "festarepublica",
       location: { latitude: -23.5, longitude: -46.6 },
       promoters: [{ name: "João", whatsapp: "11999999999" }],
@@ -307,6 +312,7 @@ describe("eventController.updateEvent", () => {
         name: "Festa do Republica",
         date: "2026-04-10T22:00:00Z",
         ended_at: "2026-04-11T04:00:00Z",
+        image_url: VALID_IMAGE_URL,
         instagram: "festarepublica",
         requesterUserId: "uuid-user-123",
         user_role: "institutional",

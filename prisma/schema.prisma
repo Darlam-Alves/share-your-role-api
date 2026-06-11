@@ -45,6 +45,7 @@ enum seller_status {
 model users {
   id                             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                           String
+  bio                            String?
   email_personal                 String?
   email_institutional            String?
   phone                          String

@@ -62,7 +62,7 @@ async function create({
 async function findById(id) {
   return prisma.users.findUnique({
     where: { id },
-    select: { id: true, role: true, cpf: true },
+    select: { id: true, role: true },
   });
 }
 
@@ -72,12 +72,12 @@ async function findProfileById(id) {
     select: {
       id: true,
       name: true,
+      bio: true,
       role: true,
       email_personal: true,
       email_institutional: true,
       email_institutional_verified: true,
       phone: true,
-      cpf: true,
       profile_image_url: true,
       resale_whatsapp: true,
       resale_instagram: true,
@@ -93,6 +93,8 @@ async function findPublicProfileById(id) {
     select: {
       id: true,
       name: true,
+      bio: true,
+      phone: true,
       profile_image_url: true,
       resale_whatsapp: true,
       resale_instagram: true,
@@ -103,7 +105,9 @@ async function findPublicProfileById(id) {
 }
 
 async function updateProfile(id, {
-  cpf,
+  name,
+  bio,
+  phone,
   profileImageUrl,
   resaleWhatsapp,
   resaleInstagram,
@@ -112,7 +116,9 @@ async function updateProfile(id, {
   return prisma.users.update({
     where: { id },
     data: {
-      cpf,
+      name,
+      bio,
+      phone,
       profile_image_url: profileImageUrl,
       resale_whatsapp: resaleWhatsapp,
       resale_instagram: resaleInstagram,
@@ -121,12 +127,12 @@ async function updateProfile(id, {
     select: {
       id: true,
       name: true,
+      bio: true,
       role: true,
       email_personal: true,
       email_institutional: true,
       email_institutional_verified: true,
       phone: true,
-      cpf: true,
       profile_image_url: true,
       resale_whatsapp: true,
       resale_instagram: true,
@@ -134,31 +140,6 @@ async function updateProfile(id, {
       created_at: true,
     },
   });
-}
-
-async function updateCpf(id, cpf) {
-  return prisma.users.update({
-    where: { id },
-    data: { cpf },
-    select: {
-      id: true,
-      cpf: true,
-    },
-  });
-}
-
-async function countCompletedSalesByUserId(userId) {
-  const result = await prisma.sellers.aggregate({
-    where: {
-      user_id: userId,
-      status: "sold",
-    },
-    _sum: {
-      quantity: true,
-    },
-  });
-
-  return result._sum.quantity ?? 0;
 }
 
 async function listEventsByUserId(userId) {
@@ -240,8 +221,6 @@ module.exports = {
   findProfileById,
   findPublicProfileById,
   updateProfile,
-  updateCpf,
-  countCompletedSalesByUserId,
   listEventsByUserId,
   listResalesByUserId,
   findByEmail,

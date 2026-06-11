@@ -24,29 +24,39 @@ function buildHttpError(statusCode, message) {
   return error;
 }
 
-function normalizeCpf(value) {
-  const raw = toOptionalTrimmedString(value);
-  if (!raw) return null;
-
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
-    throw buildHttpError(400, "CPF inválido.");
+function normalizeName(value) {
+  const name = toOptionalTrimmedString(value);
+  if (!name) {
+    throw buildHttpError(400, "Nome completo é obrigatório.");
   }
 
-  const numbers = digits.split("").map(Number);
+  if (name.length < 3) {
+    throw buildHttpError(400, "Nome completo deve ter pelo menos 3 caracteres.");
+  }
 
-  const firstDigitSum = numbers.slice(0, 9).reduce((sum, digit, index) => {
-    return sum + digit * (10 - index);
-  }, 0);
-  const firstDigit = firstDigitSum % 11 < 2 ? 0 : 11 - (firstDigitSum % 11);
+  return name;
+}
 
-  const secondDigitSum = numbers.slice(0, 10).reduce((sum, digit, index) => {
-    return sum + digit * (11 - index);
-  }, 0);
-  const secondDigit = secondDigitSum % 11 < 2 ? 0 : 11 - (secondDigitSum % 11);
+function normalizeBio(value) {
+  const bio = toOptionalTrimmedString(value);
+  if (!bio) return null;
 
-  if (numbers[9] !== firstDigit || numbers[10] !== secondDigit) {
-    throw buildHttpError(400, "CPF inválido.");
+  if (bio.length > 280) {
+    throw buildHttpError(400, "Bio deve ter no máximo 280 caracteres.");
+  }
+
+  return bio;
+}
+
+function normalizePhone(value) {
+  const raw = toOptionalTrimmedString(value);
+  if (!raw) {
+    throw buildHttpError(400, "Telefone é obrigatório.");
+  }
+
+  const digits = raw.replace(/\D/g, "");
+  if (!WHATSAPP_DIGITS_REGEX.test(digits)) {
+    throw buildHttpError(400, "Telefone inválido. Use DDD + número, com 10 a 13 dígitos.");
   }
 
   return digits;
@@ -213,23 +223,13 @@ async function login(payload) {
   };
 }
 
-async function withSalesCount(profile) {
-  if (!profile) return null;
-
-  const salesCount = await userRepository.countCompletedSalesByUserId(profile.id);
-  return {
-    ...profile,
-    sales_count: salesCount,
-  };
-}
-
 async function getMyProfile(userId) {
   const user = await userRepository.findProfileById(userId);
   if (!user) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
 
-  return withSalesCount(user);
+  return user;
 }
 
 async function getPublicProfile(userId) {
@@ -238,7 +238,7 @@ async function getPublicProfile(userId) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
 
-  return withSalesCount(user);
+  return user;
 }
 
 async function updateMyProfile(userId, payload) {
@@ -247,28 +247,15 @@ async function updateMyProfile(userId, payload) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
 
-  try {
-    const cpf = normalizeCpf(payload.cpf);
-    if (!cpf) {
-      throw buildHttpError(400, "CPF é obrigatório.");
-    }
-
-    const updatedUser = await userRepository.updateProfile(userId, {
-      cpf,
-      profileImageUrl: normalizeProfileImageUrl(payload.profile_image_url),
-      resaleWhatsapp: normalizeWhatsapp(payload.resale_whatsapp),
-      resaleInstagram: normalizeInstagram(payload.resale_instagram),
-      resaleTelegram: normalizeTelegram(payload.resale_telegram),
-    });
-
-    return withSalesCount(updatedUser);
-  } catch (error) {
-    if (error?.code === "P2002") {
-      throw buildHttpError(409, "CPF já cadastrado para outro usuário.");
-    }
-
-    throw error;
-  }
+  return userRepository.updateProfile(userId, {
+    name: normalizeName(payload.name),
+    bio: normalizeBio(payload.bio),
+    phone: normalizePhone(payload.phone),
+    profileImageUrl: normalizeProfileImageUrl(payload.profile_image_url),
+    resaleWhatsapp: normalizeWhatsapp(payload.resale_whatsapp),
+    resaleInstagram: normalizeInstagram(payload.resale_instagram),
+    resaleTelegram: normalizeTelegram(payload.resale_telegram),
+  });
 }
 
 function serializeMyEvent(event) {
@@ -325,5 +312,4 @@ module.exports = {
   updateMyProfile,
   getMyEvents,
   getMyResales,
-  normalizeCpf,
 };

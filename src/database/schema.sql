@@ -18,6 +18,7 @@ CREATE TYPE seller_status    AS ENUM ('open', 'sold', 'cancelled');
 CREATE TABLE users (
   id                             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   name                           TEXT        NOT NULL,
+  bio                            TEXT,
   email_personal                 TEXT,
   email_institutional            TEXT,
   phone                          TEXT        NOT NULL,

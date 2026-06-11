@@ -1,6 +1,5 @@
 const eventRepository = require("../models/event");
 const userRepository = require("../models/user");
-const { normalizeCpf } = require("./userService");
 
 const VALID_VISIBILITY_TYPES = ["public", "institutional_only", "private"];
 const ALLOWED_ROLES = ["institutional", "admin"];
@@ -248,23 +247,6 @@ async function createEvent(payload) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
 
-  const cpf = payload.cpf ? normalizeCpf(payload.cpf) : creator.cpf;
-  if (!cpf) {
-    throw buildHttpError(400, "CPF é obrigatório para cadastrar evento.");
-  }
-
-  if (payload.cpf && cpf !== creator.cpf) {
-    try {
-      await userRepository.updateCpf(eventData.createdByUserId, cpf);
-    } catch (error) {
-      if (error?.code === "P2002") {
-        throw buildHttpError(409, "CPF já cadastrado para outro usuário.");
-      }
-
-      throw error;
-    }
-  }
-
   // Validate republic membership if provided
   if (eventData.createdByRepublicId) {
     const member = await eventRepository.findRepublicMember(
@@ -327,9 +309,6 @@ async function getEventById(id) {
   }
 
   const { event_location, event_promoters, created_by_user, ...rest } = event;
-  const organizerSalesCount = created_by_user?.id
-    ? await userRepository.countCompletedSalesByUserId(created_by_user.id)
-    : 0;
 
   const now = new Date();
   let location = null;
@@ -346,9 +325,7 @@ async function getEventById(id) {
 
   return {
     ...rest,
-    organized_by: created_by_user
-      ? { ...created_by_user, sales_count: organizerSalesCount }
-      : null,
+    organized_by: created_by_user,
     location,
     promoters: event_promoters,
   };
@@ -433,21 +410,12 @@ function normalizeResalePayload(payload) {
   };
 }
 
-async function serializeEventResale(resale) {
-  const salesCount = resale.user?.id
-    ? await userRepository.countCompletedSalesByUserId(resale.user.id)
-    : 0;
-
+function serializeEventResale(resale) {
   const { user, ...rest } = resale;
   return {
     ...rest,
     price: Number(rest.price),
-    seller: user
-      ? {
-          ...user,
-          sales_count: salesCount,
-        }
-      : null,
+    seller: user,
   };
 }
 
@@ -463,7 +431,7 @@ async function listEventResales(eventId) {
   }
 
   const resales = await eventRepository.listResalesByEventId(id);
-  return Promise.all(resales.map(serializeEventResale));
+  return resales.map(serializeEventResale);
 }
 
 async function createEventResale(payload) {
@@ -489,6 +457,7 @@ async function createEventResale(payload) {
   }
 
   const hasContact =
+    Boolean(profile.phone) ||
     Boolean(profile.resale_whatsapp) ||
     Boolean(profile.resale_instagram) ||
     Boolean(profile.resale_telegram);
@@ -496,7 +465,7 @@ async function createEventResale(payload) {
   if (!hasContact) {
     throw buildHttpError(
       400,
-      "Cadastre WhatsApp, Instagram ou Telegram no perfil antes de anunciar revenda."
+      "Cadastre telefone, WhatsApp, Instagram ou Telegram no perfil antes de anunciar revenda."
     );
   }
 

@@ -21,6 +21,7 @@ async function findActiveSellerByUserAndEvent(userId, eventId) {
 }
 
 // Cria o anúncio do vendedor no banco de dados
+// Cria o anúncio do vendedor no banco de dados
 async function create({ userId, eventId, price, quantity }) {
   return prisma.sellers.create({
     data: {
@@ -28,17 +29,51 @@ async function create({ userId, eventId, price, quantity }) {
       event_id: eventId,
       price,
       quantity,
-      status: "open", // Padrão definido no schema.sql
+      status: "open",
     },
     select: {
       id: true,
-      user_id: true,
       event_id: true,
       price: true,
       quantity: true,
       status: true,
       created_at: true,
+      // MODIFICADO DE "users" PARA "user" (no singular)
+      user: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+        },
+      },
     },
+  });
+}
+
+// Busca todos os vendedores ativos de um determinado evento
+async function findManyByEventId(eventId) {
+  return prisma.sellers.findMany({
+    where: {
+      event_id: eventId,
+      status: "open",
+    },
+    select: {
+      id: true,
+      event_id: true,
+      price: true,
+      quantity: true,
+      status: true,
+      created_at: true,
+      // MODIFICADO DE "users" PARA "user" (no singular)
+      user: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+        },
+      },
+    },
+    orderBy: { created_at: "desc" },
   });
 }
 
@@ -46,4 +81,6 @@ module.exports = {
   findEventById,
   findActiveSellerByUserAndEvent,
   create,
+  findManyByEventId, 
 };
+

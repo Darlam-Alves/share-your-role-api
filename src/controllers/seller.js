@@ -24,6 +24,23 @@ async function createSeller(request, response) {
   }
 }
 
+async function listSellers(request, response) {
+    const { id: event_id } = request.params;
+  
+    try {
+      const sellers = await sellerService.listSellersByEvent(event_id);
+      return response.status(200).json(sellers);
+    } catch (error) {
+      if (error.statusCode) {
+        return response.status(error.statusCode).json({ message: error.message });
+      }
+  
+      console.error("Erro ao listar vendedores:", error);
+      return response.status(500).json({ message: "Erro interno do servidor." });
+    }
+  }
+
 module.exports = {
   createSeller,
+  listSellers
 };

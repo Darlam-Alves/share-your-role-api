@@ -52,19 +52,68 @@ async function createSeller(payload) {
   }
 
   // 6. Persistência no banco
-  try {
-    return await sellerRepository.create({
+// 6. Persistência no banco
+try {
+    const newSeller = await sellerRepository.create({
       userId,
       eventId,
       price,
       quantity,
     });
+
+    // Formatando o retorno para o controller/front-end
+    return {
+      id: newSeller.id,
+      event_id: newSeller.event_id,
+      price: newSeller.price,
+      quantity: newSeller.quantity,
+      status: newSeller.status,
+      created_at: newSeller.created_at,
+      vendor: {
+        id: newSeller.user.id,
+        name: newSeller.user.name,
+        phone: newSeller.user.phone // Disponível para o front criar o link de WhatsApp
+      }
+    };
+
   } catch (error) {
     console.error("Erro ao inserir vendedor no banco:", error);
     throw buildHttpError(500, "Erro ao registrar vendedor no banco de dados.");
   }
 }
 
+async function listSellersByEvent(eventId) {
+    const normalizedEventId = toOptionalTrimmedString(eventId);
+  
+    if (!normalizedEventId) {
+      throw buildHttpError(400, "O parâmetro id do evento é obrigatório.");
+    }
+  
+    // Verificar se o evento existe antes de listar
+    const eventExists = await sellerRepository.findEventById(normalizedEventId);
+    if (!eventExists) {
+      throw buildHttpError(404, "Evento não encontrado.");
+    }
+  
+    const sellers = await sellerRepository.findManyByEventId(normalizedEventId);
+  
+    // Formata a lista para o padrão amigável do front-end
+    return sellers.map((seller) => ({
+      id: seller.id,
+      event_id: seller.event_id,
+      price: seller.price,
+      quantity: seller.quantity,
+      status: seller.status,
+      created_at: seller.created_at,
+      vendor: {
+        id: seller.user.id,
+        name: seller.user.name,
+        phone: seller.user.phone,
+      },
+    }));
+  }
+
 module.exports = {
   createSeller,
+  listSellersByEvent
 };

@@ -49,7 +49,6 @@ model users {
   email_personal                 String?
   email_institutional            String?
   phone                          String
-  cpf                            String?   @unique(map: "users_cpf_idx")
   profile_image_url              String?
   resale_whatsapp                String?
   resale_instagram               String?

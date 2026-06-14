@@ -22,7 +22,6 @@ CREATE TABLE users (
   email_personal                 TEXT,
   email_institutional            TEXT,
   phone                          TEXT        NOT NULL,
-  cpf                            TEXT,
   profile_image_url              TEXT,
   resale_whatsapp                TEXT,
   resale_instagram               TEXT CHECK (resale_instagram IS NULL OR resale_instagram ~ '^@[a-zA-Z0-9_.]{1,30}$'),
@@ -44,9 +43,6 @@ CREATE UNIQUE INDEX users_email_personal_lower_idx
 
 CREATE UNIQUE INDEX users_email_institutional_lower_idx
   ON users (LOWER(email_institutional)) WHERE email_institutional IS NOT NULL;
-
-CREATE UNIQUE INDEX users_cpf_idx
-  ON users (cpf) WHERE cpf IS NOT NULL;
 
 -- ------------------------------------------------------------
 -- republics

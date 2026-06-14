@@ -269,18 +269,6 @@ function serializeMyEvent(event) {
     ticket_platform: event.ticket_platform,
     ticket_url: event.ticket_url,
     created_at: event.created_at,
-    resales_count: event._count?.sellers ?? 0,
-  };
-}
-
-function serializeMyResale(resale) {
-  return {
-    id: resale.id,
-    price: Number(resale.price),
-    quantity: resale.quantity,
-    status: resale.status,
-    created_at: resale.created_at,
-    event: resale.event,
   };
 }
 
@@ -294,16 +282,6 @@ async function getMyEvents(userId) {
   return events.map(serializeMyEvent);
 }
 
-async function getMyResales(userId) {
-  const existingUser = await userRepository.findById(userId);
-  if (!existingUser) {
-    throw buildHttpError(404, "Usuário não encontrado.");
-  }
-
-  const resales = await userRepository.listResalesByUserId(userId);
-  return resales.map(serializeMyResale);
-}
-
 module.exports = {
   createUser,
   login,
@@ -311,5 +289,4 @@ module.exports = {
   getPublicProfile,
   updateMyProfile,
   getMyEvents,
-  getMyResales,
 };

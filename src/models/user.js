@@ -157,40 +157,9 @@ async function listEventsByUserId(userId) {
       ticket_platform: true,
       ticket_url: true,
       created_at: true,
-      _count: {
-        select: {
-          sellers: true,
-        },
-      },
     },
     orderBy: {
       date: "desc",
-    },
-  });
-}
-
-async function listResalesByUserId(userId) {
-  return prisma.sellers.findMany({
-    where: {
-      user_id: userId,
-    },
-    select: {
-      id: true,
-      price: true,
-      quantity: true,
-      status: true,
-      created_at: true,
-      event: {
-        select: {
-          id: true,
-          name: true,
-          image_url: true,
-          date: true,
-        },
-      },
-    },
-    orderBy: {
-      created_at: "desc",
     },
   });
 }
@@ -222,7 +191,6 @@ module.exports = {
   findPublicProfileById,
   updateProfile,
   listEventsByUserId,
-  listResalesByUserId,
   findByEmail,
   create,
 };

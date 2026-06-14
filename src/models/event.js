@@ -220,67 +220,6 @@ async function removeById(id) {
   });
 }
 
-async function listResalesByEventId(eventId) {
-  return prisma.sellers.findMany({
-    where: {
-      event_id: eventId,
-      status: "open",
-    },
-    select: {
-      id: true,
-      price: true,
-      quantity: true,
-      status: true,
-      created_at: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          profile_image_url: true,
-          phone: true,
-          resale_whatsapp: true,
-          resale_instagram: true,
-          resale_telegram: true,
-        },
-      },
-    },
-    orderBy: [
-      { price: "asc" },
-      { created_at: "asc" },
-    ],
-  });
-}
-
-async function createResale({ eventId, userId, price, quantity }) {
-  return prisma.sellers.create({
-    data: {
-      event_id: eventId,
-      user_id: userId,
-      price,
-      quantity,
-      status: "open",
-    },
-    select: {
-      id: true,
-      price: true,
-      quantity: true,
-      status: true,
-      created_at: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          profile_image_url: true,
-          phone: true,
-          resale_whatsapp: true,
-          resale_instagram: true,
-          resale_telegram: true,
-        },
-      },
-    },
-  });
-}
-
 module.exports = {
   findRepublicMember,
   create,
@@ -289,6 +228,4 @@ module.exports = {
   findOwnerById,
   updateById,
   removeById,
-  listResalesByEventId,
-  createResale,
 };

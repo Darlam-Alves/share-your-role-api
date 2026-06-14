@@ -138,50 +138,10 @@ async function deleteEvent(request, response) {
   }
 }
 
-async function listEventResales(request, response) {
-  const { id } = request.params;
-
-  try {
-    const resales = await eventService.listEventResales(id);
-    return response.status(200).json(resales);
-  } catch (error) {
-    if (error.statusCode) {
-      return response.status(error.statusCode).json({ message: error.message });
-    }
-
-    console.error("Erro ao listar revendas do evento:", error);
-    return response.status(500).json({ message: "Erro interno do servidor." });
-  }
-}
-
-async function createEventResale(request, response) {
-  const { id } = request.params;
-  const { price, quantity } = request.body || {};
-
-  try {
-    const resale = await eventService.createEventResale({
-      eventId: id,
-      requesterUserId: request.user.id,
-      price,
-      quantity,
-    });
-    return response.status(201).json(resale);
-  } catch (error) {
-    if (error.statusCode) {
-      return response.status(error.statusCode).json({ message: error.message });
-    }
-
-    console.error("Erro ao criar revenda do evento:", error);
-    return response.status(500).json({ message: "Erro interno do servidor." });
-  }
-}
-
 module.exports = {
   createEvent,
   listEvents,
   getEventById,
   updateEvent,
   deleteEvent,
-  listEventResales,
-  createEventResale,
 };

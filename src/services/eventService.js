@@ -392,99 +392,10 @@ async function updateEvent(payload) {
   }
 }
 
-function normalizeResalePayload(payload) {
-  const price = Number(payload.price);
-  const quantity = Number(payload.quantity);
-
-  if (!Number.isFinite(price) || price <= 0) {
-    throw buildHttpError(400, "Preço da revenda deve ser maior que zero.");
-  }
-
-  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
-    throw buildHttpError(400, "Quantidade da revenda deve ser um número inteiro entre 1 e 10.");
-  }
-
-  return {
-    price,
-    quantity,
-  };
-}
-
-function serializeEventResale(resale) {
-  const { user, ...rest } = resale;
-  return {
-    ...rest,
-    price: Number(rest.price),
-    seller: user,
-  };
-}
-
-async function listEventResales(eventId) {
-  const id = toOptionalTrimmedString(eventId);
-  if (!id) {
-    throw buildHttpError(400, "Parâmetro id é obrigatório.");
-  }
-
-  const event = await eventRepository.findOwnerById(id);
-  if (!event) {
-    throw buildHttpError(404, "Evento não encontrado.");
-  }
-
-  const resales = await eventRepository.listResalesByEventId(id);
-  return resales.map(serializeEventResale);
-}
-
-async function createEventResale(payload) {
-  const eventId = toOptionalTrimmedString(payload.eventId);
-  const userId = toOptionalTrimmedString(payload.requesterUserId);
-
-  if (!eventId) {
-    throw buildHttpError(400, "Parâmetro id é obrigatório.");
-  }
-
-  if (!userId) {
-    throw buildHttpError(401, "Usuário autenticado é obrigatório.");
-  }
-
-  const event = await eventRepository.findOwnerById(eventId);
-  if (!event) {
-    throw buildHttpError(404, "Evento não encontrado.");
-  }
-
-  const profile = await userRepository.findPublicProfileById(userId);
-  if (!profile) {
-    throw buildHttpError(404, "Usuário não encontrado.");
-  }
-
-  const hasContact =
-    Boolean(profile.phone) ||
-    Boolean(profile.resale_whatsapp) ||
-    Boolean(profile.resale_instagram) ||
-    Boolean(profile.resale_telegram);
-
-  if (!hasContact) {
-    throw buildHttpError(
-      400,
-      "Cadastre telefone, WhatsApp, Instagram ou Telegram no perfil antes de anunciar revenda."
-    );
-  }
-
-  const resaleData = normalizeResalePayload(payload);
-  const resale = await eventRepository.createResale({
-    eventId,
-    userId,
-    ...resaleData,
-  });
-
-  return serializeEventResale(resale);
-}
-
 module.exports = {
   createEvent,
   listEvents,
   getEventById,
   deleteEvent,
   updateEvent,
-  listEventResales,
-  createEventResale,
 };

@@ -66,7 +66,7 @@ async function findById(id) {
   });
 }
 
-async function findProfileById(id) {
+async function getMyProfile(id) {
   return prisma.users.findUnique({
     where: { id },
     select: {
@@ -87,7 +87,7 @@ async function findProfileById(id) {
   });
 }
 
-async function findPublicProfileById(id) {
+async function getPublicProfile(id) {
   return prisma.users.findUnique({
     where: { id },
     select: {
@@ -142,7 +142,7 @@ async function updateProfile(id, {
   });
 }
 
-async function listEventsByUserId(userId) {
+async function getEventsByUserId(userId) {
   return prisma.events.findMany({
     where: {
       created_by_user_id: userId,
@@ -187,10 +187,10 @@ async function findByEmail(email) {
 module.exports = {
   findByEmails,
   findById,
-  findProfileById,
-  findPublicProfileById,
+  getMyProfile,
+  getPublicProfile,
   updateProfile,
-  listEventsByUserId,
+  getEventsByUserId,
   findByEmail,
   create,
 };

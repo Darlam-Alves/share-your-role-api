@@ -224,7 +224,7 @@ async function login(payload) {
 }
 
 async function getMyProfile(userId) {
-  const user = await userRepository.findProfileById(userId);
+  const user = await userRepository.getMyProfile(userId);
   if (!user) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
@@ -233,7 +233,7 @@ async function getMyProfile(userId) {
 }
 
 async function getPublicProfile(userId) {
-  const user = await userRepository.findPublicProfileById(userId);
+  const user = await userRepository.getPublicProfile(userId);
   if (!user) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
@@ -278,7 +278,7 @@ async function getMyEvents(userId) {
     throw buildHttpError(404, "Usuário não encontrado.");
   }
 
-  const events = await userRepository.listEventsByUserId(userId);
+  const events = await userRepository.getEventsByUserId(userId);
   return events.map(serializeMyEvent);
 }
 

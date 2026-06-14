@@ -114,13 +114,52 @@ describe("authService.login", () => {
       );
     });
 
-    test("retorna role institutional quando login é feito com email institucional", async () => {
+    test("retorna role public quando email institucional ainda não foi verificado", async () => {
+      const result = await authService.login({ email: "ana@usp.br", password: "senha123" });
+
+      expect(result.user.role).toBe("public");
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: "public",
+          email_institutional_verified: false,
+        }),
+        "test-secret",
+        { expiresIn: "7d" }
+      );
+    });
+
+    test("retorna role institutional quando login usa email institucional verificado", async () => {
+      userRepository.findByEmail.mockResolvedValue({
+        ...VALID_USER,
+        email_institutional_verified: true,
+      });
+
       const result = await authService.login({ email: "ana@usp.br", password: "senha123" });
 
       expect(result.user.role).toBe("institutional");
       expect(jwt.sign).toHaveBeenCalledWith(
         expect.objectContaining({
           role: "institutional",
+          email_institutional_verified: true,
+        }),
+        "test-secret",
+        { expiresIn: "7d" }
+      );
+    });
+
+    test("mantém role public quando login usa email pessoal mesmo com email institucional verificado", async () => {
+      userRepository.findByEmail.mockResolvedValue({
+        ...VALID_USER,
+        email_institutional_verified: true,
+      });
+
+      const result = await authService.login({ email: "ana@gmail.com", password: "senha123" });
+
+      expect(result.user.role).toBe("public");
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          role: "public",
+          email_institutional_verified: false,
         }),
         "test-secret",
         { expiresIn: "7d" }

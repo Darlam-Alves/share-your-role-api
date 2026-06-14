@@ -120,8 +120,13 @@ function getSessionRole(user, loginEmail) {
   if (user.role === "admin") return "admin";
 
   const institutionalEmail = toOptionalTrimmedString(user.email_institutional)?.toLowerCase();
+  const hasVerifiedInstitutionalEmail = user.email_institutional_verified === true;
 
-  if (user.role === "institutional" && loginEmail === institutionalEmail) {
+  if (
+    user.role === "institutional" &&
+    hasVerifiedInstitutionalEmail &&
+    loginEmail === institutionalEmail
+  ) {
     return "institutional";
   }
 
@@ -199,6 +204,7 @@ async function login(payload) {
   }
 
   const sessionRole = getSessionRole(user, email);
+  const sessionInstitutionalVerified = sessionRole === "institutional";
 
   // 3. Gera o Token JWT
   // Dica: use uma string segura no seu .env como JWT_SECRET
@@ -206,7 +212,8 @@ async function login(payload) {
     { 
       id: user.id, 
       role: sessionRole,
-      name: user.name 
+      name: user.name,
+      email_institutional_verified: sessionInstitutionalVerified,
     }, 
     process.env.JWT_SECRET, 
     { expiresIn: "7d" }
@@ -218,7 +225,7 @@ async function login(payload) {
       id: user.id,
       name: user.name,
       role: sessionRole,
-      email_institutional_verified: user.email_institutional_verified
+      email_institutional_verified: sessionInstitutionalVerified
     }
   };
 }

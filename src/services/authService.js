@@ -18,8 +18,13 @@ function getSessionRole(user, loginEmail) {
   if (user.role === "admin") return "admin";
 
   const institutionalEmail = toOptionalTrimmedString(user.email_institutional)?.toLowerCase();
+  const hasVerifiedInstitutionalEmail = user.email_institutional_verified === true;
 
-  if (user.role === "institutional" && loginEmail === institutionalEmail) {
+  if (
+    user.role === "institutional" &&
+    hasVerifiedInstitutionalEmail &&
+    loginEmail === institutionalEmail
+  ) {
     return "institutional";
   }
 
@@ -45,12 +50,13 @@ async function login(payload) {
   }
 
   const sessionRole = getSessionRole(user, email);
+  const sessionInstitutionalVerified = sessionRole === "institutional";
 
   const token = jwt.sign(
     {
       id: user.id,
       role: sessionRole,
-      email_institutional_verified: user.email_institutional_verified,
+      email_institutional_verified: sessionInstitutionalVerified,
     },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }

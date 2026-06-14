@@ -99,7 +99,10 @@ function buildHttpError(statusCode, message) {
   return error;
 }
 
-function normalizeEventPayload(payload, { requireCreator = false, permissionAction = "criar" } = {}) {
+function normalizeEventPayload(
+  payload,
+  { requireCreator = false, permissionAction = "criar", preserveMissingRelations = false } = {}
+) {
   const name = toOptionalTrimmedString(payload.name);
   const description = toOptionalTrimmedString(payload.description);
   const imageUrl = normalizeEventImageUrl(payload.image_url);
@@ -157,8 +160,10 @@ function normalizeEventPayload(payload, { requireCreator = false, permissionActi
   }
 
   // Normalize location
-  let location = null;
-  if (payload.location) {
+  let location = preserveMissingRelations ? undefined : null;
+  if (payload.location === null) {
+    location = null;
+  } else if (payload.location !== undefined) {
     const { latitude, longitude, address, release_at } = payload.location;
     if (latitude == null || longitude == null) {
       throw buildHttpError(400, "Campos latitude e longitude são obrigatórios quando location é enviado.");
@@ -172,8 +177,10 @@ function normalizeEventPayload(payload, { requireCreator = false, permissionActi
   }
 
   // Normalize promoters
-  let promoters = null;
-  if (payload.promoters !== undefined) {
+  let promoters = preserveMissingRelations ? undefined : null;
+  if (payload.promoters === null) {
+    promoters = null;
+  } else if (payload.promoters !== undefined) {
     if (!Array.isArray(payload.promoters)) {
       throw buildHttpError(400, "Campo promoters deve ser um array.");
     }
@@ -378,9 +385,13 @@ async function updateEvent(payload) {
     throw buildHttpError(403, "Apenas o usuário que criou o evento pode editá-lo.");
   }
 
-  const { createdByUserId, createdByRepublicId, ...eventData } = normalizeEventPayload(payload, {
-    permissionAction: "alterar",
-  });
+  const { createdByUserId, createdByRepublicId, ...eventData } = normalizeEventPayload(
+    payload,
+    {
+      permissionAction: "alterar",
+      preserveMissingRelations: true,
+    }
+  );
 
   try {
     return await eventRepository.updateById({

@@ -883,6 +883,29 @@ describe("eventService.updateEvent", () => {
     );
   });
 
+  test("mantém location e promoters sem alteração quando não são enviados", async () => {
+    await eventService.updateEvent(VALID_UPDATE_PAYLOAD);
+
+    const updatePayload = eventRepository.updateById.mock.calls[0][0];
+    expect(updatePayload).toHaveProperty("location", undefined);
+    expect(updatePayload).toHaveProperty("promoters", undefined);
+  });
+
+  test("envia null para remover location e promoters quando são enviados como null", async () => {
+    await eventService.updateEvent({
+      ...VALID_UPDATE_PAYLOAD,
+      location: null,
+      promoters: null,
+    });
+
+    expect(eventRepository.updateById).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: null,
+        promoters: null,
+      })
+    );
+  });
+
   test("lança erro 409 quando atualização viola unicidade de nome e data", async () => {
     const prismaError = new Error("Unique constraint failed");
     prismaError.code = "P2002";

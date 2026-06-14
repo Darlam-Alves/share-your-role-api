@@ -171,42 +171,54 @@ async function updateById({
       },
     });
 
-    await tx.event_location.deleteMany({
-      where: { event_id: id },
-    });
-
     let eventLocation = null;
-    if (location) {
-      eventLocation = await tx.event_location.create({
-        data: {
-          event_id: id,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          address: location.address ?? null,
-          release_at: location.release_at ?? null,
-        },
+    if (location === undefined) {
+      eventLocation = await tx.event_location.findUnique({
+        where: { event_id: id },
       });
+    } else {
+      await tx.event_location.deleteMany({
+        where: { event_id: id },
+      });
+
+      if (location !== null) {
+        eventLocation = await tx.event_location.create({
+          data: {
+            event_id: id,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            address: location.address ?? null,
+            release_at: location.release_at ?? null,
+          },
+        });
+      }
     }
 
-    await tx.event_promoters.deleteMany({
-      where: { event_id: id },
-    });
-
     let eventPromoters = [];
-    if (promoters && promoters.length > 0) {
-      await tx.event_promoters.createMany({
-        data: promoters.map((p) => ({
-          event_id: id,
-          name: p.name,
-          whatsapp: p.whatsapp ?? null,
-          instagram: p.instagram ?? null,
-          telegram: p.telegram ?? null,
-        })),
-      });
-
+    if (promoters === undefined) {
       eventPromoters = await tx.event_promoters.findMany({
         where: { event_id: id },
       });
+    } else {
+      await tx.event_promoters.deleteMany({
+        where: { event_id: id },
+      });
+
+      if (promoters !== null && promoters.length > 0) {
+        await tx.event_promoters.createMany({
+          data: promoters.map((p) => ({
+            event_id: id,
+            name: p.name,
+            whatsapp: p.whatsapp ?? null,
+            instagram: p.instagram ?? null,
+            telegram: p.telegram ?? null,
+          })),
+        });
+
+        eventPromoters = await tx.event_promoters.findMany({
+          where: { event_id: id },
+        });
+      }
     }
 
     return { ...event, location: eventLocation, promoters: eventPromoters };

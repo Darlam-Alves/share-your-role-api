@@ -151,7 +151,7 @@ describe("eventController.createEvent", () => {
     });
 
     test("retorna 500 quando o service lança erro sem statusCode", async () => {
-      eventService.createEvent.mockRejectedValue(new Error("Connection refused"));
+      eventService.createEvent.mockRejectedValue(new Error("Erro interno do servidor."));
 
       const req = makeReq({ body: VALID_BODY, user: VALID_USER });
       const res = makeRes();

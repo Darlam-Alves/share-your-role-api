@@ -8,15 +8,14 @@ const authRoutes = require("./routes/auth");
 
 const app = express();
 
+// Origens padrão para desenvolvimento local e capacitor (mobile)
+// Para adicionar origens adicionais, use a variável de ambiente CORS_ORIGINS (separadas por vírgula)
 const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://localhost",
-  "https://localhost",
   "capacitor://localhost",
   ...(process.env.CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? []),
 ];
 
+// Regex para aceitar localhost e 127.0.0.1 com qualquer porta (desenvolvimento local)
 const localDevOriginRegex = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
 app.use(cors({

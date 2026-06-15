@@ -1,11 +1,10 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const userRepository = require("../models/user");
+const { sanitizeSocialHandle } = require("../utils/socialHandles");
 
 const SALT_ROUNDS = 10;
 const WHATSAPP_DIGITS_REGEX = /^\d{10,13}$/;
-const INSTAGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_.]{1,30}$/;
-const TELEGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
 const PROFILE_IMAGE_DATA_URL_REGEX = /^data:image\/(jpeg|jpg|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
 const MAX_PROFILE_IMAGE_URL_LENGTH = 1_000_000;
 
@@ -75,27 +74,17 @@ function normalizeWhatsapp(value) {
 }
 
 function normalizeInstagram(value) {
-  const raw = toOptionalTrimmedString(value);
-  if (!raw) return null;
-
-  const handle = raw.startsWith("@") ? raw : `@${raw}`;
-  if (!INSTAGRAM_HANDLE_REGEX.test(handle)) {
-    throw buildHttpError(400, "Instagram inválido. Use @usuario com até 30 caracteres.");
-  }
-
-  return handle.toLowerCase();
+  return sanitizeSocialHandle(value, {
+    platform: "instagram",
+    message: "Instagram inválido. Use @usuario com até 30 caracteres.",
+  });
 }
 
 function normalizeTelegram(value) {
-  const raw = toOptionalTrimmedString(value);
-  if (!raw) return null;
-
-  const handle = raw.startsWith("@") ? raw : `@${raw}`;
-  if (!TELEGRAM_HANDLE_REGEX.test(handle)) {
-    throw buildHttpError(400, "Telegram inválido. Use @usuario com 5 a 32 caracteres.");
-  }
-
-  return handle.toLowerCase();
+  return sanitizeSocialHandle(value, {
+    platform: "telegram",
+    message: "Telegram inválido. Use @usuario com 5 a 32 caracteres.",
+  });
 }
 
 function normalizeProfileImageUrl(value) {
@@ -249,19 +238,14 @@ async function getPublicProfile(userId) {
 }
 
 async function updateMyProfile(userId, payload) {
-  const existingUser = await userRepository.findById(userId);
-  if (!existingUser) {
-    throw buildHttpError(404, "Usuário não encontrado.");
-  }
-
   return userRepository.updateProfile(userId, {
     name: normalizeName(payload.name),
     bio: normalizeBio(payload.bio),
     phone: normalizePhone(payload.phone),
     profileImageUrl: normalizeProfileImageUrl(payload.profile_image_url),
-    resaleWhatsapp: normalizeWhatsapp(payload.resale_whatsapp),
-    resaleInstagram: normalizeInstagram(payload.resale_instagram),
-    resaleTelegram: normalizeTelegram(payload.resale_telegram),
+    sellerWhatsapp: normalizeWhatsapp(payload.seller_whatsapp),
+    sellerInstagram: normalizeInstagram(payload.seller_instagram),
+    sellerTelegram: normalizeTelegram(payload.seller_telegram),
   });
 }
 
@@ -280,11 +264,6 @@ function serializeMyEvent(event) {
 }
 
 async function getMyEvents(userId) {
-  const existingUser = await userRepository.findById(userId);
-  if (!existingUser) {
-    throw buildHttpError(404, "Usuário não encontrado.");
-  }
-
   const events = await userRepository.getEventsByUserId(userId);
   return events.map(serializeMyEvent);
 }

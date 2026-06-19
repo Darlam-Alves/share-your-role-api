@@ -1,7 +1,9 @@
 const eventService = require("../../../src/services/eventService");
 const eventRepository = require("../../../src/models/event");
+const userRepository = require("../../../src/models/user");
 
 jest.mock("../../../src/models/event");
+jest.mock("../../../src/models/user");
 
 const VALID_PAYLOAD = {
   name: "Festa do Republica",
@@ -35,6 +37,10 @@ describe("eventService.createEvent", () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date("2026-04-01T12:00:00Z"));
     jest.clearAllMocks();
+    userRepository.findById.mockResolvedValue({
+      id: "uuid-user-123",
+      role: "institutional",
+    });
     eventRepository.findRepublicMember.mockResolvedValue(null);
     eventRepository.create.mockResolvedValue(CREATED_EVENT);
   });

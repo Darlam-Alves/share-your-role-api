@@ -1,5 +1,6 @@
 const eventRepository = require("../models/event");
 const userRepository = require("../models/user");
+const { sanitizeSocialHandle } = require("../utils/socialHandles");
 
 const VALID_VISIBILITY_TYPES = ["public", "institutional_only", "private"];
 const ALLOWED_ROLES = ["institutional", "admin"];
@@ -30,23 +31,15 @@ function toOptionalTrimmedString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-const INSTAGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_.]{1,30}$/;
 const WHATSAPP_DIGITS_REGEX = /^\d{10,13}$/;
-const TELEGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_]{5,32}$/;
 const EVENT_IMAGE_DATA_URL_REGEX = /^data:image\/(jpeg|jpg|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
 const MAX_EVENT_IMAGE_URL_LENGTH = 3_000_000;
 
 function normalizeInstagram(value) {
-  const raw = toOptionalTrimmedString(value);
-  if (!raw) return null;
-  const handle = raw.startsWith("@") ? raw : `@${raw}`;
-  if (!INSTAGRAM_HANDLE_REGEX.test(handle)) {
-    throw buildHttpError(
-      400,
-      "Instagram inválido. Use o formato @usuario (letras, números, pontos e underscores, até 30 caracteres)."
-    );
-  }
-  return handle.toLowerCase();
+  return sanitizeSocialHandle(value, {
+    platform: "instagram",
+    message: "Instagram inválido. Use o formato @usuario (letras, números, pontos e underscores, até 30 caracteres).",
+  });
 }
 
 function normalizeWhatsapp(value) {
@@ -63,16 +56,10 @@ function normalizeWhatsapp(value) {
 }
 
 function normalizeTelegram(value) {
-  const raw = toOptionalTrimmedString(value);
-  if (!raw) return null;
-  const handle = raw.startsWith("@") ? raw : `@${raw}`;
-  if (!TELEGRAM_HANDLE_REGEX.test(handle)) {
-    throw buildHttpError(
-      400,
-      "Telegram inválido. Use @usuario com letras, números ou underscore, de 5 a 32 caracteres."
-    );
-  }
-  return handle.toLowerCase();
+  return sanitizeSocialHandle(value, {
+    platform: "telegram",
+    message: "Telegram inválido. Use @usuario com letras, números ou underscore, de 5 a 32 caracteres.",
+  });
 }
 
 function normalizeEventImageUrl(value) {

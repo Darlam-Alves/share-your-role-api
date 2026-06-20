@@ -109,6 +109,9 @@ async function getMyResales(userId) {
     where: {
       user_id: userId,
     },
+    include: {
+      user: true, 
+    },
     orderBy: {
       created_at: 'desc',
     },

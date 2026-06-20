@@ -1,4 +1,5 @@
 const eventService = require("../services/eventService");
+const prisma = require("../config/prisma");
 
 async function createEvent(request, response) {
   const {
@@ -75,6 +76,25 @@ async function getEventById(request, response) {
   }
 }
 
+async function getEventResales(request, response) {
+  try {
+    const eventId = request.params.id;
+    const resales = await prisma.resales.findMany({
+      where: {
+        event_id: eventId,
+        status: "open", // Mostra apenas as que estão abertas
+      },
+      include: {
+        user: true, // Inclui o usuário/vendedor
+      },
+    });
+    return response.status(200).json(resales);
+  } catch (error) {
+    console.error("Erro ao buscar revendas do evento:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
 async function updateEvent(request, response) {
   const { id } = request.params;
   const {
@@ -144,4 +164,5 @@ module.exports = {
   getEventById,
   updateEvent,
   deleteEvent,
+  getEventResales
 };

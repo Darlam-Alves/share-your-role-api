@@ -10,7 +10,7 @@ CREATE TYPE member_role      AS ENUM ('member', 'admin', 'aggregate');
 CREATE TYPE invite_status    AS ENUM ('pending', 'accepted', 'rejected');
 CREATE TYPE visibility_type  AS ENUM ('public', 'institutional_only', 'private');
 CREATE TYPE presence_status  AS ENUM ('confirmed', 'cancelled', 'maybe');
-CREATE TYPE seller_status    AS ENUM ('open', 'sold', 'cancelled');
+CREATE TYPE resale_status    AS ENUM ('open', 'sold', 'cancelled');
 
 -- ------------------------------------------------------------
 -- users
@@ -23,9 +23,9 @@ CREATE TABLE users (
   email_institutional            TEXT,
   phone                          TEXT        NOT NULL,
   profile_image_url              TEXT,
-  seller_whatsapp                TEXT,
-  seller_instagram               TEXT CHECK (seller_instagram IS NULL OR seller_instagram ~ '^@[a-zA-Z0-9_.]{1,30}$'),
-  seller_telegram                TEXT,
+  resale_whatsapp                TEXT,
+  resale_instagram               TEXT CHECK (resale_instagram IS NULL OR resale_instagram ~ '^@[a-zA-Z0-9_.]{1,30}$'),
+  resale_telegram                TEXT,
   password_hash                  TEXT        NOT NULL,
   role                           user_role   NOT NULL DEFAULT 'public',
   created_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -161,30 +161,30 @@ CREATE TABLE event_presence (
 );
 
 -- ------------------------------------------------------------
--- sellers
--- -- Regra dos 130%: validada na aplicação (SellerService)
+-- resales
+-- -- Regra dos 130%: validada na aplicação (resaleservice)
 -- ------------------------------------------------------------
-CREATE TABLE sellers (
+CREATE TABLE resales (
   id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID          NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
   event_id    UUID          NOT NULL REFERENCES events(id)  ON DELETE CASCADE,
   price       NUMERIC(10,2) NOT NULL CHECK (price >= 0),
   quantity    INT           NOT NULL CHECK (quantity > 0),
-  status      seller_status NOT NULL DEFAULT 'open',
+  status      resale_status NOT NULL DEFAULT 'open',
   created_at  TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
 
 -- ------------------------------------------------------------
--- seller_reviews
+-- resale_reviews
 -- ------------------------------------------------------------
-CREATE TABLE seller_reviews (
+CREATE TABLE resale_reviews (
   id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   reviewer_user_id    UUID        NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
-  seller_id           UUID        NOT NULL REFERENCES sellers(id)  ON DELETE CASCADE,
+  resale_id           UUID        NOT NULL REFERENCES resales(id)  ON DELETE CASCADE,
   rating              SMALLINT    NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment             TEXT,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (reviewer_user_id, seller_id)
+  UNIQUE (reviewer_user_id, resale_id)
 );
 
 -- ------------------------------------------------------------

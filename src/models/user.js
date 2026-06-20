@@ -79,9 +79,9 @@ async function getMyProfile(id) {
       email_institutional_verified: true,
       phone: true,
       profile_image_url: true,
-      seller_whatsapp: true,
-      seller_instagram: true,
-      seller_telegram: true,
+      resale_whatsapp: true,
+      resale_instagram: true,
+      resale_telegram: true,
       created_at: true,
     },
   });
@@ -96,10 +96,21 @@ async function getPublicProfile(id) {
       bio: true,
       phone: true,
       profile_image_url: true,
-      seller_whatsapp: true,
-      seller_instagram: true,
-      seller_telegram: true,
+      resale_whatsapp: true,
+      resale_instagram: true,
+      resale_telegram: true,
       created_at: true,
+    },
+  });
+}
+
+async function getMyResales(userId) {
+  return await prisma.resales.findMany({
+    where: {
+      user_id: userId,
+    },
+    orderBy: {
+      created_at: 'desc',
     },
   });
 }
@@ -109,9 +120,9 @@ async function updateProfile(id, {
   bio,
   phone,
   profileImageUrl,
-  sellerWhatsapp,
-  sellerInstagram,
-  sellerTelegram,
+  resaleWhatsapp,
+  resaleInstagram,
+  resaleTelegram,
 }) {
   return prisma.users.update({
     where: { id },
@@ -120,9 +131,9 @@ async function updateProfile(id, {
       bio,
       phone,
       profile_image_url: profileImageUrl,
-      seller_whatsapp: sellerWhatsapp,
-      seller_instagram: sellerInstagram,
-      seller_telegram: sellerTelegram,
+      resale_whatsapp: resaleWhatsapp,
+      resale_instagram: resaleInstagram,
+      resale_telegram: resaleTelegram,
     },
     select: {
       id: true,
@@ -134,9 +145,9 @@ async function updateProfile(id, {
       email_institutional_verified: true,
       phone: true,
       profile_image_url: true,
-      seller_whatsapp: true,
-      seller_instagram: true,
-      seller_telegram: true,
+      resale_whatsapp: true,
+      resale_instagram: true,
+      resale_telegram: true,
       created_at: true,
     },
   });
@@ -193,4 +204,5 @@ module.exports = {
   getEventsByUserId,
   findByEmail,
   create,
+  getMyResales
 };

@@ -243,9 +243,9 @@ async function updateMyProfile(userId, payload) {
     bio: normalizeBio(payload.bio),
     phone: normalizePhone(payload.phone),
     profileImageUrl: normalizeProfileImageUrl(payload.profile_image_url),
-    sellerWhatsapp: normalizeWhatsapp(payload.seller_whatsapp),
-    sellerInstagram: normalizeInstagram(payload.seller_instagram),
-    sellerTelegram: normalizeTelegram(payload.seller_telegram),
+    resaleWhatsapp: normalizeWhatsapp(payload.resale_whatsapp),
+    resaleInstagram: normalizeInstagram(payload.resale_instagram),
+    resaleTelegram: normalizeTelegram(payload.resale_telegram),
   });
 }
 
@@ -263,6 +263,12 @@ function serializeMyEvent(event) {
   };
 }
 
+async function getMyResales(userId) {
+  const userModel = require("../models/user"); 
+  return await userModel.getMyResales(userId);
+}
+
+
 async function getMyEvents(userId) {
   const events = await userRepository.getEventsByUserId(userId);
   return events.map(serializeMyEvent);
@@ -275,4 +281,5 @@ module.exports = {
   getPublicProfile,
   updateMyProfile,
   getMyEvents,
+  getMyResales
 };

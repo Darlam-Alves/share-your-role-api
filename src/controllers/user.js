@@ -80,10 +80,25 @@ async function getMyEvents(request, response) {
   }
 }
 
+async function getMyResales(request, response) {
+  try {
+    const resales = await userService.getMyResales(request.user.id);
+    return response.status(200).json(resales);
+  } catch (error) {
+    if (error.statusCode) {
+      return response.status(error.statusCode).json({ message: error.message });
+    }
+
+    console.error("Erro ao buscar revendas do usuário:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
 module.exports = {
   createUser,
   getMyProfile,
   updateMyProfile,
   getPublicProfile,
   getMyEvents,
+  getMyResales
 };

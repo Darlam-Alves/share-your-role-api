@@ -138,9 +138,9 @@ INSERT INTO event_presence (event_id, user_id, status) VALUES
   ('30000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000003', 'confirmed');
 
 -- ------------------------------------------------------------
--- sellers  (lote 2 do Brick = R$50 → máx R$65)
+-- resales  (lote 2 do Brick = R$50 → máx R$65)
 -- ------------------------------------------------------------
-INSERT INTO sellers (id, user_id, event_id, price, quantity, status) VALUES
+INSERT INTO resales (id, user_id, event_id, price, quantity, status) VALUES
   ('50000000-0000-0000-0000-000000000001',
    '00000000-0000-0000-0000-000000000004',
    '30000000-0000-0000-0000-000000000001',
@@ -152,9 +152,9 @@ INSERT INTO sellers (id, user_id, event_id, price, quantity, status) VALUES
    50.00, 1, 'open');
 
 -- ------------------------------------------------------------
--- seller_reviews
+-- resale_reviews
 -- ------------------------------------------------------------
-INSERT INTO seller_reviews (reviewer_user_id, seller_id, rating, comment) VALUES
+INSERT INTO resale_reviews (reviewer_user_id, resale_id, rating, comment) VALUES
   ('00000000-0000-0000-0000-000000000002',
    '50000000-0000-0000-0000-000000000002',
    5,
@@ -179,7 +179,7 @@ ORDER BY el.price;
 
 -- Menor preço de revenda por evento
 -- SELECT e.name, MIN(s.price) AS menor_preco
--- FROM sellers s
+-- FROM resales s
 -- JOIN events e ON e.id = s.event_id
 -- WHERE s.status = 'open'
 -- GROUP BY e.name
@@ -187,9 +187,9 @@ ORDER BY el.price;
 
 -- Vendedores com média de avaliação
 -- SELECT u.name, AVG(sr.rating) AS media, COUNT(sr.id) AS avaliacoes
--- FROM sellers s
+-- FROM resales s
 -- JOIN users u ON u.id = s.user_id
--- LEFT JOIN seller_reviews sr ON sr.seller_id = s.id
+-- LEFT JOIN resale_reviews sr ON sr.resale_id = s.id
 -- WHERE s.event_id = '30000000-0000-0000-0000-000000000001'
 -- GROUP BY u.name
 -- ORDER BY media DESC NULLS LAST;

@@ -16,17 +16,7 @@ function toOptionalTrimmedString(value) {
 
 function getSessionRole(user, loginEmail) {
   if (user.role === "admin") return "admin";
-
-  const institutionalEmail = toOptionalTrimmedString(user.email_institutional)?.toLowerCase();
-  const hasVerifiedInstitutionalEmail = user.email_institutional_verified === true;
-
-  if (
-    user.role === "institutional" &&
-    hasVerifiedInstitutionalEmail &&
-    loginEmail === institutionalEmail
-  ) {
-    return "institutional";
-  }
+  if (user.role === "institutional") return "institutional";
 
   return "public";
 }

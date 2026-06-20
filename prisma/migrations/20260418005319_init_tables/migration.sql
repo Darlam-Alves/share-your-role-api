@@ -14,7 +14,7 @@ CREATE TYPE "visibility_type" AS ENUM ('public', 'institutional_only', 'private'
 CREATE TYPE "presence_status" AS ENUM ('confirmed', 'cancelled', 'maybe');
 
 -- CreateEnum
-CREATE TYPE "seller_status" AS ENUM ('open', 'sold', 'cancelled');
+CREATE TYPE "resale_status" AS ENUM ('open', 'sold', 'cancelled');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -129,28 +129,28 @@ CREATE TABLE "event_presence" (
 );
 
 -- CreateTable
-CREATE TABLE "sellers" (
+CREATE TABLE "resales" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL,
     "event_id" UUID NOT NULL,
     "price" DECIMAL(10,2) NOT NULL,
     "quantity" INTEGER NOT NULL,
-    "status" "seller_status" NOT NULL DEFAULT 'open',
+    "status" "resale_status" NOT NULL DEFAULT 'open',
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "sellers_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "resales_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "seller_reviews" (
+CREATE TABLE "resale_reviews" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "reviewer_user_id" UUID NOT NULL,
-    "seller_id" UUID NOT NULL,
+    "resale_id" UUID NOT NULL,
     "rating" SMALLINT NOT NULL,
     "comment" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "seller_reviews_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "resale_reviews_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -166,7 +166,7 @@ CREATE UNIQUE INDEX "event_promoters_event_id_telegram_key" ON "event_promoters"
 CREATE UNIQUE INDEX "event_lots_event_id_lot_number_key" ON "event_lots"("event_id", "lot_number");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "seller_reviews_reviewer_user_id_seller_id_key" ON "seller_reviews"("reviewer_user_id", "seller_id");
+CREATE UNIQUE INDEX "resale_reviews_reviewer_user_id_resale_id_key" ON "resale_reviews"("reviewer_user_id", "resale_id");
 
 -- AddForeignKey
 ALTER TABLE "republic_members" ADD CONSTRAINT "republic_members_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -205,13 +205,13 @@ ALTER TABLE "event_presence" ADD CONSTRAINT "event_presence_event_id_fkey" FOREI
 ALTER TABLE "event_presence" ADD CONSTRAINT "event_presence_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sellers" ADD CONSTRAINT "sellers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "resales" ADD CONSTRAINT "resales_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "sellers" ADD CONSTRAINT "sellers_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "resales" ADD CONSTRAINT "resales_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "seller_reviews" ADD CONSTRAINT "seller_reviews_reviewer_user_id_fkey" FOREIGN KEY ("reviewer_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "resale_reviews" ADD CONSTRAINT "resale_reviews_reviewer_user_id_fkey" FOREIGN KEY ("reviewer_user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "seller_reviews" ADD CONSTRAINT "seller_reviews_seller_id_fkey" FOREIGN KEY ("seller_id") REFERENCES "sellers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "resale_reviews" ADD CONSTRAINT "resale_reviews_resale_id_fkey" FOREIGN KEY ("resale_id") REFERENCES "resales"("id") ON DELETE CASCADE ON UPDATE CASCADE;

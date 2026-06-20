@@ -12,6 +12,7 @@ async function findRepublicMember(userId, republicId) {
 async function create({
   name,
   description,
+  imageUrl,
   date,
   endedAt,
   createdByUserId,
@@ -28,6 +29,7 @@ async function create({
       data: {
         name,
         description,
+        image_url: imageUrl,
         date,
         ended_at: endedAt,
         created_by_user_id: createdByUserId,
@@ -85,6 +87,7 @@ async function list({ startDate, endDate, visibilityTypes }) {
     select: {
       id: true,
       name: true,
+      image_url: true,
       date: true,
       ended_at: true,
       visibility_type: true,
@@ -101,6 +104,7 @@ async function findById(id) {
       created_by_user_id: true,
       name: true,
       description: true,
+      image_url: true,
       date: true,
       ended_at: true,
       visibility_type: true,
@@ -109,6 +113,7 @@ async function findById(id) {
       ticket_url: true,
       created_by_user: {
         select: {
+          id: true,
           name: true,
         },
       },
@@ -136,6 +141,90 @@ async function findOwnerById(id) {
   });
 }
 
+async function updateById({
+  id,
+  name,
+  description,
+  imageUrl,
+  date,
+  endedAt,
+  ticketPlatform,
+  ticketUrl,
+  instagram,
+  visibilityType,
+  location,
+  promoters,
+}) {
+  return prisma.$transaction(async (tx) => {
+    const event = await tx.events.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        image_url: imageUrl,
+        date,
+        ended_at: endedAt,
+        ticket_platform: ticketPlatform,
+        ticket_url: ticketUrl,
+        instagram,
+        visibility_type: visibilityType,
+      },
+    });
+
+    let eventLocation = null;
+    if (location === undefined) {
+      eventLocation = await tx.event_location.findUnique({
+        where: { event_id: id },
+      });
+    } else {
+      await tx.event_location.deleteMany({
+        where: { event_id: id },
+      });
+
+      if (location !== null) {
+        eventLocation = await tx.event_location.create({
+          data: {
+            event_id: id,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            address: location.address ?? null,
+            release_at: location.release_at ?? null,
+          },
+        });
+      }
+    }
+
+    let eventPromoters = [];
+    if (promoters === undefined) {
+      eventPromoters = await tx.event_promoters.findMany({
+        where: { event_id: id },
+      });
+    } else {
+      await tx.event_promoters.deleteMany({
+        where: { event_id: id },
+      });
+
+      if (promoters !== null && promoters.length > 0) {
+        await tx.event_promoters.createMany({
+          data: promoters.map((p) => ({
+            event_id: id,
+            name: p.name,
+            whatsapp: p.whatsapp ?? null,
+            instagram: p.instagram ?? null,
+            telegram: p.telegram ?? null,
+          })),
+        });
+
+        eventPromoters = await tx.event_promoters.findMany({
+          where: { event_id: id },
+        });
+      }
+    }
+
+    return { ...event, location: eventLocation, promoters: eventPromoters };
+  });
+}
+
 async function removeById(id) {
   return prisma.events.delete({
     where: { id },
@@ -143,4 +232,12 @@ async function removeById(id) {
   });
 }
 
-module.exports = { findRepublicMember, create, list, findById, findOwnerById, removeById };
+module.exports = {
+  findRepublicMember,
+  create,
+  list,
+  findById,
+  findOwnerById,
+  updateById,
+  removeById,
+};

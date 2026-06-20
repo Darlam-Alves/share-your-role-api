@@ -1,7 +1,9 @@
 const eventService = require("../../../src/services/eventService");
 const eventRepository = require("../../../src/models/event");
+const userRepository = require("../../../src/models/user");
 
 jest.mock("../../../src/models/event");
+jest.mock("../../../src/models/user");
 
 const VALID_PAYLOAD = {
   name: "Festa do Republica",
@@ -12,6 +14,8 @@ const VALID_PAYLOAD = {
   user_role: "institutional",
   instagram: "@festarepublica",
 };
+
+const VALID_IMAGE_URL = "data:image/png;base64,aGVsbG8=";
 
 const CREATED_EVENT = {
   id: "uuid-event-123",
@@ -31,9 +35,18 @@ const CREATED_EVENT = {
 
 describe("eventService.createEvent", () => {
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-01T12:00:00Z"));
     jest.clearAllMocks();
+    userRepository.findById.mockResolvedValue({
+      id: "uuid-user-123",
+      role: "institutional",
+    });
     eventRepository.findRepublicMember.mockResolvedValue(null);
     eventRepository.create.mockResolvedValue(CREATED_EVENT);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   describe("validação de campos obrigatórios", () => {
@@ -89,6 +102,26 @@ describe("eventService.createEvent", () => {
       await expect(
         eventService.createEvent({ ...VALID_PAYLOAD, date: "data-invalida" })
       ).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    test("lança erro 400 quando date está no passado", async () => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          date: "2026-04-01T11:59:59Z",
+          ended_at: "2026-04-01T15:00:00Z",
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("futuros") });
+    });
+
+    test("lança erro 400 quando date é igual ao horário atual", async () => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          date: "2026-04-01T12:00:00Z",
+          ended_at: "2026-04-01T15:00:00Z",
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("futuros") });
     });
 
     test("aceita date no formato ISO 8601", async () => {
@@ -340,6 +373,14 @@ describe("eventService.createEvent", () => {
       );
     });
 
+    test("repassa a imagem do evento quando enviada", async () => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, image_url: VALID_IMAGE_URL });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ imageUrl: VALID_IMAGE_URL })
+      );
+    });
+
     test("converte instagram para lowercase e mantém o @", async () => {
       await eventService.createEvent({ ...VALID_PAYLOAD, instagram: "@FESTAREPUBLICA" });
 
@@ -371,11 +412,49 @@ describe("eventService.createEvent", () => {
       );
     });
 
+    test("normaliza whatsapp de promoter para apenas dígitos", async () => {
+      await eventService.createEvent({
+        ...VALID_PAYLOAD,
+        promoters: [{ name: "João", whatsapp: "(19) 99999-9999" }],
+      });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promoters: expect.arrayContaining([
+            expect.objectContaining({ whatsapp: "19999999999" }),
+          ]),
+        })
+      );
+    });
+
+    test("normaliza telegram de promoter para lowercase e mantém o @", async () => {
+      await eventService.createEvent({
+        ...VALID_PAYLOAD,
+        promoters: [{ name: "João", telegram: "JOAO_PROMOTER" }],
+      });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          promoters: expect.arrayContaining([
+            expect.objectContaining({ telegram: "@joao_promoter" }),
+          ]),
+        })
+      );
+    });
+
     test("converte description vazia para null", async () => {
       await eventService.createEvent({ ...VALID_PAYLOAD, description: "   " });
 
       expect(eventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ description: null })
+      );
+    });
+
+    test("converte imagem vazia para null", async () => {
+      await eventService.createEvent({ ...VALID_PAYLOAD, image_url: "   " });
+
+      expect(eventRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ imageUrl: null })
       );
     });
 
@@ -422,6 +501,55 @@ describe("eventService.createEvent", () => {
       expect(eventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({ instagram: expected })
       );
+    });
+  });
+
+  describe("validação da imagem do evento", () => {
+    test("lança erro 400 quando imagem não é PNG, JPG ou WEBP", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, image_url: "data:image/gif;base64,aGVsbG8=" })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("Imagem"),
+      });
+    });
+
+    test("lança erro 400 quando imagem é grande demais", async () => {
+      await expect(
+        eventService.createEvent({ ...VALID_PAYLOAD, image_url: `data:image/png;base64,${"a".repeat(3_000_000)}` })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("imagem"),
+      });
+    });
+  });
+
+  describe("validação do formato do whatsapp e telegram", () => {
+    test.each([
+      ["com menos de 10 dígitos", "199999999"],
+      ["com mais de 13 dígitos", "12345678901234"],
+      ["sem nenhum dígito", "telefone"],
+    ])("lança erro 400 quando whatsapp é %s", async (_, whatsapp) => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          promoters: [{ name: "João", whatsapp }],
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("WhatsApp") });
+    });
+
+    test.each([
+      ["com menos de 5 caracteres", "joao"],
+      ["com caracteres inválidos", "@joao-promoter"],
+      ["somente @", "@"],
+      ["com mais de 32 caracteres", "a".repeat(33)],
+    ])("lança erro 400 quando telegram é %s", async (_, telegram) => {
+      await expect(
+        eventService.createEvent({
+          ...VALID_PAYLOAD,
+          promoters: [{ name: "João", telegram }],
+        })
+      ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("Telegram") });
     });
   });
 
@@ -656,5 +784,191 @@ describe("eventService.listEvents", () => {
       expect(event.ended_at).toBeDefined();
       expect(event.visibility_type).toBeDefined();
     });
+  });
+});
+
+describe("eventService.updateEvent", () => {
+  const VALID_UPDATE_PAYLOAD = {
+    id: "uuid-event-123",
+    requesterUserId: "uuid-user-123",
+    name: "Festa Atualizada",
+    date: "2026-04-10T22:00:00Z",
+    ended_at: "2026-04-11T04:00:00Z",
+    visibility_type: "public",
+    user_role: "institutional",
+    instagram: "@festaatualizada",
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-01T12:00:00Z"));
+    jest.clearAllMocks();
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "uuid-user-123",
+    });
+    eventRepository.updateById.mockResolvedValue(CREATED_EVENT);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test("lança erro 400 quando id não é enviado", async () => {
+    const { id, ...payload } = VALID_UPDATE_PAYLOAD;
+
+    await expect(eventService.updateEvent(payload)).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("id"),
+    });
+  });
+
+  test("lança erro 401 quando requesterUserId não é enviado", async () => {
+    const { requesterUserId, ...payload } = VALID_UPDATE_PAYLOAD;
+
+    await expect(eventService.updateEvent(payload)).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+
+  test("lança erro 404 quando evento não existe", async () => {
+    eventRepository.findOwnerById.mockResolvedValue(null);
+
+    await expect(eventService.updateEvent(VALID_UPDATE_PAYLOAD)).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  test("lança erro 403 quando usuário não criou o evento", async () => {
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "outro-user",
+    });
+
+    await expect(eventService.updateEvent(VALID_UPDATE_PAYLOAD)).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    expect(eventRepository.updateById).not.toHaveBeenCalled();
+  });
+
+  test("lança erro 403 quando user_role não pode alterar eventos", async () => {
+    await expect(
+      eventService.updateEvent({ ...VALID_UPDATE_PAYLOAD, user_role: "public" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  test("lança erro 400 quando nova data está no passado", async () => {
+    await expect(
+      eventService.updateEvent({
+        ...VALID_UPDATE_PAYLOAD,
+        date: "2026-04-01T11:59:59Z",
+        ended_at: "2026-04-01T15:00:00Z",
+      })
+    ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("futuros") });
+  });
+
+  test("atualiza o evento quando usuário é o criador", async () => {
+    await eventService.updateEvent({
+      ...VALID_UPDATE_PAYLOAD,
+      description: "  Nova descricao  ",
+      image_url: VALID_IMAGE_URL,
+      ticket_url: "https://sympla.com.br/evento",
+      promoters: [{ name: "João", whatsapp: "(19) 99999-9999" }],
+    });
+
+    expect(eventRepository.updateById).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "uuid-event-123",
+        name: "Festa Atualizada",
+        description: "Nova descricao",
+        imageUrl: VALID_IMAGE_URL,
+        ticketPlatform: "Sympla",
+        promoters: expect.arrayContaining([
+          expect.objectContaining({ whatsapp: "19999999999" }),
+        ]),
+      })
+    );
+  });
+
+  test("mantém location e promoters sem alteração quando não são enviados", async () => {
+    await eventService.updateEvent(VALID_UPDATE_PAYLOAD);
+
+    const updatePayload = eventRepository.updateById.mock.calls[0][0];
+    expect(updatePayload).toHaveProperty("location", undefined);
+    expect(updatePayload).toHaveProperty("promoters", undefined);
+  });
+
+  test("envia null para remover location e promoters quando são enviados como null", async () => {
+    await eventService.updateEvent({
+      ...VALID_UPDATE_PAYLOAD,
+      location: null,
+      promoters: null,
+    });
+
+    expect(eventRepository.updateById).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: null,
+        promoters: null,
+      })
+    );
+  });
+
+  test("lança erro 409 quando atualização viola unicidade de nome e data", async () => {
+    const prismaError = new Error("Unique constraint failed");
+    prismaError.code = "P2002";
+    eventRepository.updateById.mockRejectedValue(prismaError);
+
+    await expect(eventService.updateEvent(VALID_UPDATE_PAYLOAD)).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("nome"),
+    });
+  });
+});
+
+describe("eventService.deleteEvent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "uuid-user-123",
+    });
+    eventRepository.removeById.mockResolvedValue({ id: "uuid-event-123" });
+  });
+
+  test("lança erro 400 quando id não é enviado", async () => {
+    await expect(
+      eventService.deleteEvent({ requesterUserId: "uuid-user-123" })
+    ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining("id") });
+  });
+
+  test("lança erro 401 quando requesterUserId não é enviado", async () => {
+    await expect(
+      eventService.deleteEvent({ id: "uuid-event-123" })
+    ).rejects.toMatchObject({ statusCode: 401 });
+  });
+
+  test("lança erro 404 quando evento não existe", async () => {
+    eventRepository.findOwnerById.mockResolvedValue(null);
+
+    await expect(
+      eventService.deleteEvent({ id: "uuid-event-123", requesterUserId: "uuid-user-123" })
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  test("lança erro 403 quando usuário não criou o evento", async () => {
+    eventRepository.findOwnerById.mockResolvedValue({
+      id: "uuid-event-123",
+      created_by_user_id: "outro-user",
+    });
+
+    await expect(
+      eventService.deleteEvent({ id: "uuid-event-123", requesterUserId: "uuid-user-123" })
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(eventRepository.removeById).not.toHaveBeenCalled();
+  });
+
+  test("remove o evento quando usuário é o criador", async () => {
+    await eventService.deleteEvent({ id: "uuid-event-123", requesterUserId: "uuid-user-123" });
+
+    expect(eventRepository.removeById).toHaveBeenCalledWith("uuid-event-123");
   });
 });

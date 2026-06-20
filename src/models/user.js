@@ -66,6 +66,118 @@ async function findById(id) {
   });
 }
 
+async function getMyProfile(id) {
+  return prisma.users.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      bio: true,
+      role: true,
+      email_personal: true,
+      email_institutional: true,
+      email_institutional_verified: true,
+      phone: true,
+      profile_image_url: true,
+      resale_whatsapp: true,
+      resale_instagram: true,
+      resale_telegram: true,
+      created_at: true,
+    },
+  });
+}
+
+async function getPublicProfile(id) {
+  return prisma.users.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      bio: true,
+      phone: true,
+      profile_image_url: true,
+      resale_whatsapp: true,
+      resale_instagram: true,
+      resale_telegram: true,
+      created_at: true,
+    },
+  });
+}
+
+async function getMyResales(userId) {
+  return await prisma.resales.findMany({
+    where: {
+      user_id: userId,
+    },
+    include: {
+      user: true, 
+    },
+    orderBy: {
+      created_at: 'desc',
+    },
+  });
+}
+
+async function updateProfile(id, {
+  name,
+  bio,
+  phone,
+  profileImageUrl,
+  resaleWhatsapp,
+  resaleInstagram,
+  resaleTelegram,
+}) {
+  return prisma.users.update({
+    where: { id },
+    data: {
+      name,
+      bio,
+      phone,
+      profile_image_url: profileImageUrl,
+      resale_whatsapp: resaleWhatsapp,
+      resale_instagram: resaleInstagram,
+      resale_telegram: resaleTelegram,
+    },
+    select: {
+      id: true,
+      name: true,
+      bio: true,
+      role: true,
+      email_personal: true,
+      email_institutional: true,
+      email_institutional_verified: true,
+      phone: true,
+      profile_image_url: true,
+      resale_whatsapp: true,
+      resale_instagram: true,
+      resale_telegram: true,
+      created_at: true,
+    },
+  });
+}
+
+async function getEventsByUserId(userId) {
+  return prisma.events.findMany({
+    where: {
+      created_by_user_id: userId,
+    },
+    select: {
+      id: true,
+      name: true,
+      image_url: true,
+      date: true,
+      ended_at: true,
+      visibility_type: true,
+      ticket_platform: true,
+      ticket_url: true,
+      created_at: true,
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
+}
+
 async function findByEmail(email) {
   return prisma.users.findFirst({
     where: {
@@ -78,6 +190,8 @@ async function findByEmail(email) {
       id: true,
       name: true,
       role: true,
+      email_personal: true,
+      email_institutional: true,
       email_institutional_verified: true,
       password_hash: true,
     },
@@ -87,6 +201,11 @@ async function findByEmail(email) {
 module.exports = {
   findByEmails,
   findById,
+  getMyProfile,
+  getPublicProfile,
+  updateProfile,
+  getEventsByUserId,
   findByEmail,
   create,
+  getMyResales
 };

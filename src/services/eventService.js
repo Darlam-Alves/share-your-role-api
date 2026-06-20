@@ -1,4 +1,6 @@
 const eventRepository = require("../models/event");
+const userRepository = require("../models/user");
+const { sanitizeSocialHandle } = require("../utils/socialHandles");
 
 const VALID_VISIBILITY_TYPES = ["public", "institutional_only", "private"];
 const ALLOWED_ROLES = ["institutional", "admin"];
@@ -29,19 +31,53 @@ function toOptionalTrimmedString(value) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-const INSTAGRAM_HANDLE_REGEX = /^@[a-zA-Z0-9_.]{1,30}$/;
+const WHATSAPP_DIGITS_REGEX = /^\d{10,13}$/;
+const EVENT_IMAGE_DATA_URL_REGEX = /^data:image\/(jpeg|jpg|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
+const MAX_EVENT_IMAGE_URL_LENGTH = 3_000_000;
 
 function normalizeInstagram(value) {
+  return sanitizeSocialHandle(value, {
+    platform: "instagram",
+    message: "Instagram inválido. Use o formato @usuario (letras, números, pontos e underscores, até 30 caracteres).",
+  });
+}
+
+function normalizeWhatsapp(value) {
   const raw = toOptionalTrimmedString(value);
   if (!raw) return null;
-  const handle = raw.startsWith("@") ? raw : `@${raw}`;
-  if (!INSTAGRAM_HANDLE_REGEX.test(handle)) {
+  const digits = raw.replace(/\D/g, "");
+  if (!WHATSAPP_DIGITS_REGEX.test(digits)) {
     throw buildHttpError(
       400,
-      "Instagram inválido. Use o formato @usuario (letras, números, pontos e underscores, até 30 caracteres)."
+      "WhatsApp inválido. Use DDD + número, com 10 a 13 dígitos."
     );
   }
-  return handle.toLowerCase();
+  return digits;
+}
+
+function normalizeTelegram(value) {
+  return sanitizeSocialHandle(value, {
+    platform: "telegram",
+    message: "Telegram inválido. Use @usuario com letras, números ou underscore, de 5 a 32 caracteres.",
+  });
+}
+
+function normalizeEventImageUrl(value) {
+  const imageUrl = toOptionalTrimmedString(value);
+  if (!imageUrl) return null;
+
+  if (imageUrl.length > MAX_EVENT_IMAGE_URL_LENGTH) {
+    throw buildHttpError(400, "A imagem do evento deve ter no máximo 2 MB.");
+  }
+
+  const isDataUrl = EVENT_IMAGE_DATA_URL_REGEX.test(imageUrl);
+  const isRemoteUrl = /^https?:\/\/.+/i.test(imageUrl);
+
+  if (!isDataUrl && !isRemoteUrl) {
+    throw buildHttpError(400, "Imagem do evento inválida. Use PNG, JPG ou WEBP.");
+  }
+
+  return imageUrl;
 }
 
 function buildHttpError(statusCode, message) {
@@ -50,10 +86,13 @@ function buildHttpError(statusCode, message) {
   return error;
 }
 
-async function createEvent(payload) {
-  // Normalize
+function normalizeEventPayload(
+  payload,
+  { requireCreator = false, permissionAction = "criar", preserveMissingRelations = false } = {}
+) {
   const name = toOptionalTrimmedString(payload.name);
   const description = toOptionalTrimmedString(payload.description);
+  const imageUrl = normalizeEventImageUrl(payload.image_url);
   const visibilityType = toOptionalTrimmedString(payload.visibility_type);
   const instagram = normalizeInstagram(payload.instagram);
   const ticketUrl = toOptionalTrimmedString(payload.ticket_url);
@@ -70,6 +109,10 @@ async function createEvent(payload) {
   const parsedDate = new Date(payload.date);
   if (isNaN(parsedDate.getTime())) {
     throw buildHttpError(400, "Campo date deve ser uma data válida");
+  }
+
+  if (parsedDate <= new Date()) {
+    throw buildHttpError(400, "O evento deve começar em uma data e horário futuros.");
   }
 
   if (endedAt !== null) {
@@ -94,26 +137,20 @@ async function createEvent(payload) {
     );
   }
 
-  if (!createdByUserId) {
+  if (requireCreator && !createdByUserId) {
     throw buildHttpError(400, "Campo created_by_user_id é obrigatório.");
   }
 
   const userRole = toOptionalTrimmedString(payload.user_role);
   if (!ALLOWED_ROLES.includes(userRole)) {
-    throw buildHttpError(403, "Apenas usuários institucionais ou administradores podem criar eventos.");
-  }
-
-  // Validate republic membership if provided
-  if (createdByRepublicId) {
-    const member = await eventRepository.findRepublicMember(createdByUserId, createdByRepublicId);
-    if (!member) {
-      throw buildHttpError(403, "Usuário não é membro da república informada.");
-    }
+    throw buildHttpError(403, `Apenas usuários institucionais ou administradores podem ${permissionAction} eventos.`);
   }
 
   // Normalize location
-  let location = null;
-  if (payload.location) {
+  let location = preserveMissingRelations ? undefined : null;
+  if (payload.location === null) {
+    location = null;
+  } else if (payload.location !== undefined) {
     const { latitude, longitude, address, release_at } = payload.location;
     if (latitude == null || longitude == null) {
       throw buildHttpError(400, "Campos latitude e longitude são obrigatórios quando location é enviado.");
@@ -127,16 +164,18 @@ async function createEvent(payload) {
   }
 
   // Normalize promoters
-  let promoters = null;
-  if (payload.promoters !== undefined) {
+  let promoters = preserveMissingRelations ? undefined : null;
+  if (payload.promoters === null) {
+    promoters = null;
+  } else if (payload.promoters !== undefined) {
     if (!Array.isArray(payload.promoters)) {
       throw buildHttpError(400, "Campo promoters deve ser um array.");
     }
     promoters = payload.promoters.map((p) => ({
       name: toOptionalTrimmedString(p.name),
-      whatsapp: toOptionalTrimmedString(p.whatsapp),
+      whatsapp: normalizeWhatsapp(p.whatsapp),
       instagram: normalizeInstagram(p.instagram),
-      telegram: toOptionalTrimmedString(p.telegram),
+      telegram: normalizeTelegram(p.telegram),
     }));
 
     if (promoters.some((p) => !p.name)) {
@@ -160,36 +199,63 @@ async function createEvent(payload) {
     );
   }
 
-  try {
-    return await eventRepository.create({
-      name,
-      description,
-      date: parsedDate,
-      endedAt,
-      visibilityType,
-      instagram,
-      ticketPlatform: deriveTicketPlatform(ticketUrl),
-      ticketUrl,
-      createdByUserId,
-      createdByRepublicId,
-      location,
-      promoters,
-    });
-  } catch (error) {
-    if (error?.code === "P2002") {
-      const target = error.meta?.target ?? [];
-      if (target.includes("whatsapp")) {
-        throw buildHttpError(409, "Esse WhatsApp já está cadastrado como promoter neste evento.");
-      }
-      if (target.includes("instagram")) {
-        throw buildHttpError(409, "Esse Instagram já está cadastrado como promoter neste evento.");
-      }
-      if (target.includes("telegram")) {
-        throw buildHttpError(409, "Esse Telegram já está cadastrado como promoter neste evento.");
-      }
-      throw buildHttpError(409, "Já existe um evento com esse nome nessa data.");
+  return {
+    name,
+    description,
+    imageUrl,
+    date: parsedDate,
+    endedAt,
+    visibilityType,
+    instagram,
+    ticketPlatform: deriveTicketPlatform(ticketUrl),
+    ticketUrl,
+    createdByUserId,
+    createdByRepublicId,
+    location,
+    promoters,
+  };
+}
+
+function handleEventWriteError(error) {
+  if (error?.code === "P2002") {
+    const target = error.meta?.target ?? [];
+    if (target.includes("whatsapp")) {
+      throw buildHttpError(409, "Esse WhatsApp já está cadastrado como promoter neste evento.");
     }
-    throw error;
+    if (target.includes("instagram")) {
+      throw buildHttpError(409, "Esse Instagram já está cadastrado como promoter neste evento.");
+    }
+    if (target.includes("telegram")) {
+      throw buildHttpError(409, "Esse Telegram já está cadastrado como promoter neste evento.");
+    }
+    throw buildHttpError(409, "Já existe um evento com esse nome nessa data.");
+  }
+  throw error;
+}
+
+async function createEvent(payload) {
+  const eventData = normalizeEventPayload(payload, { requireCreator: true });
+  const creator = await userRepository.findById(eventData.createdByUserId);
+
+  if (!creator) {
+    throw buildHttpError(404, "Usuário não encontrado.");
+  }
+
+  // Validate republic membership if provided
+  if (eventData.createdByRepublicId) {
+    const member = await eventRepository.findRepublicMember(
+      eventData.createdByUserId,
+      eventData.createdByRepublicId
+    );
+    if (!member) {
+      throw buildHttpError(403, "Usuário não é membro da república informada.");
+    }
+  }
+
+  try {
+    return await eventRepository.create(eventData);
+  } catch (error) {
+    handleEventWriteError(error);
   }
 }
 
@@ -284,4 +350,50 @@ async function deleteEvent({ id, requesterUserId }) {
   await eventRepository.removeById(eventId);
 }
 
-module.exports = { createEvent, listEvents, getEventById, deleteEvent };
+async function updateEvent(payload) {
+  const eventId = toOptionalTrimmedString(payload.id);
+  const userId = toOptionalTrimmedString(payload.requesterUserId);
+
+  if (!eventId) {
+    throw buildHttpError(400, "Parâmetro id é obrigatório.");
+  }
+
+  if (!userId) {
+    throw buildHttpError(401, "Usuário autenticado é obrigatório.");
+  }
+
+  const event = await eventRepository.findOwnerById(eventId);
+
+  if (!event) {
+    throw buildHttpError(404, "Evento não encontrado.");
+  }
+
+  if (event.created_by_user_id !== userId) {
+    throw buildHttpError(403, "Apenas o usuário que criou o evento pode editá-lo.");
+  }
+
+  const { createdByUserId, createdByRepublicId, ...eventData } = normalizeEventPayload(
+    payload,
+    {
+      permissionAction: "alterar",
+      preserveMissingRelations: true,
+    }
+  );
+
+  try {
+    return await eventRepository.updateById({
+      id: eventId,
+      ...eventData,
+    });
+  } catch (error) {
+    handleEventWriteError(error);
+  }
+}
+
+module.exports = {
+  createEvent,
+  listEvents,
+  getEventById,
+  deleteEvent,
+  updateEvent,
+};

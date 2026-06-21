@@ -208,6 +208,74 @@ async function deleteEvent(request, response) {
   }
 }
 
+async function updateEventResale(request, response) {
+  try {
+    const resaleId = request.params.id;
+    const userId = request.user.id; // Usuário logado vindo do middleware
+    const { price, quantity } = request.body;
+
+    // 1. Busca a revenda para validar o dono
+    const resale = await prisma.resales.findUnique({
+      where: { id: resaleId }
+    });
+
+    if (!resale) {
+      return response.status(404).json({ message: "Anúncio de revenda não encontrado." });
+    }
+
+    // 2. 🚨 Trava de Segurança: impede que um usuário edite o anúncio de outro
+    if (resale.user_id !== userId) {
+      return response.status(403).json({ message: "Você não tem permissão para alterar este anúncio." });
+    }
+
+    // 3. Atualiza os dados
+    const updatedResale = await prisma.resales.update({
+      where: { id: resaleId },
+      data: {
+        price: price ? parseFloat(price) : resale.price,
+        quantity: quantity ? parseInt(quantity, 10) : resale.quantity
+      }
+    });
+
+    return response.status(200).json(updatedResale);
+  } catch (error) {
+    console.error("Erro ao atualizar revenda:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
+// 🛠️ FUNÇÃO PARA DELETAR A REVENDA
+async function deleteEventResale(request, response) {
+  try {
+    const resaleId = request.params.id;
+    const userId = request.user.id;
+
+    // 1. Busca a revenda para validar o dono
+    const resale = await prisma.resales.findUnique({
+      where: { id: resaleId }
+    });
+
+    if (!resale) {
+      return response.status(404).json({ message: "Anúncio de revenda não encontrado." });
+    }
+
+    // 2. 🚨 Trava de Segurança
+    if (resale.user_id !== userId) {
+      return response.status(403).json({ message: "Você não tem permissão para deletar este anúncio." });
+    }
+
+    // 3. Remove do banco (ou muda o status para 'cancelled', se preferir manter histórico)
+    await prisma.resales.delete({
+      where: { id: resaleId }
+    });
+
+    return response.status(204).send(); // 204 significa sucesso sem conteúdo de retorno
+  } catch (error) {
+    console.error("Erro ao deletar revenda:", error);
+    return response.status(500).json({ message: "Erro interno do servidor." });
+  }
+}
+
 module.exports = {
   createEvent,
   listEvents,
@@ -215,5 +283,7 @@ module.exports = {
   updateEvent,
   deleteEvent,
   getEventResales,
-  createEventResale
+  createEventResale,
+  updateEventResale,
+  deleteEventResale
 };

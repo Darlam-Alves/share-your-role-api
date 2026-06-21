@@ -75,6 +75,56 @@ async function getEventById(request, response) {
     return response.status(500).json({ message: "Erro interno do servidor." });
   }
 }
+async function createEventResale(request, response) {
+  try {
+    const eventId = request.params.id;
+    const userId = request.user.id; 
+    const { price, quantity } = request.body;
+
+    const event = await prisma.events.findUnique({
+      where: { id: eventId },
+      select: { created_by_user_id: true }
+    });
+
+    if (!event) {
+      return response.status(404).json({ error: "Evento não encontrado." });
+    }
+
+    if (event.created_by_user_id === userId) {
+      return response.status(400).json({ 
+        error: "O organizador do evento não pode criar anúncios de revenda para o próprio evento." 
+      });
+    }
+
+    const existingResale = await prisma.resales.findFirst({
+      where: {
+        event_id: eventId,
+        user_id: userId,
+        status: "open" // Apenas barra se o anúncio ainda estiver ativo/aberto
+      }
+    });
+    if (existingResale) {
+      return response.status(400).json({ 
+        message: "Você já possui um anúncio ativo de revenda para este evento. Cancele ou edite o anterior." 
+      });
+    }
+
+    const newResale = await prisma.resales.create({
+      data: {
+        user_id: userId,
+        event_id: eventId,
+        price: parseFloat(price),
+        quantity: parseInt(quantity, 10),
+        status: "open"
+      }
+    });
+
+    return response.status(201).json(newResale);
+  } catch (error) {
+    console.error("Erro ao criar revenda:", error);
+    return response.status(500).json({ error: "Erro interno ao processar revenda." });
+  }
+}
 
 async function getEventResales(request, response) {
   try {
@@ -164,5 +214,6 @@ module.exports = {
   getEventById,
   updateEvent,
   deleteEvent,
-  getEventResales
+  getEventResales,
+  createEventResale
 };

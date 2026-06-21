@@ -8,6 +8,7 @@ router.post("/users", userController.createUser);
 router.get("/me", authenticate, userController.getMyProfile);
 router.patch("/me", authenticate, userController.updateMyProfile);
 router.get("/me/events", authenticate, userController.getMyEvents);
+router.get("/me/resales", authenticate, userController.getMyResales);
 router.get("/users/:id/profile", userController.getPublicProfile);
 
 

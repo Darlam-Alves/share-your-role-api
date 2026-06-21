@@ -112,6 +112,9 @@ async function getMyResales(userId) {
     include: {
       user: true, 
     },
+    include: {
+      event: true,
+    },
     orderBy: {
       created_at: 'desc',
     },

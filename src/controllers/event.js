@@ -129,15 +129,27 @@ async function createEventResale(request, response) {
 async function getEventResales(request, response) {
   try {
     const eventId = request.params.id;
+    
+    // 🎯 Captura o ID do usuário logado (caso ele esteja autenticado)
+    // Usamos a interrogação caso a rota permita usuários anônimos olharem a lista
+    const currentUserId = request.user?.id; 
+
     const resales = await prisma.resales.findMany({
       where: {
         event_id: eventId,
-        status: "open", // Mostra apenas as que estão abertas
+        OR: [
+          { status: "open" }, 
+          ...(currentUserId ? [{ user_id: currentUserId, status: "sold" }] : []) 
+        ]
       },
       include: {
-        user: true, // Inclui o usuário/vendedor
+        user: true, 
       },
+      orderBy: {
+        created_at: 'desc' 
+      }
     });
+
     return response.status(200).json(resales);
   } catch (error) {
     console.error("Erro ao buscar revendas do evento:", error);
@@ -211,10 +223,11 @@ async function deleteEvent(request, response) {
 async function updateEventResale(request, response) {
   try {
     const resaleId = request.params.id;
-    const userId = request.user.id; // Usuário logado vindo do middleware
-    const { price, quantity } = request.body;
+    const userId = request.user.id; 
+    
+    // 🎯 1. ADICIONE O 'status' AQUI NA DESESTRUTURAÇÃO:
+    const { price, quantity, status } = request.body;
 
-    // 1. Busca a revenda para validar o dono
     const resale = await prisma.resales.findUnique({
       where: { id: resaleId }
     });
@@ -223,17 +236,18 @@ async function updateEventResale(request, response) {
       return response.status(404).json({ message: "Anúncio de revenda não encontrado." });
     }
 
-    // 2. 🚨 Trava de Segurança: impede que um usuário edite o anúncio de outro
     if (resale.user_id !== userId) {
       return response.status(403).json({ message: "Você não tem permissão para alterar este anúncio." });
     }
 
-    // 3. Atualiza os dados
+    // 🎯 2. ADICIONE O CAMPO NO DATA DO PRISMA:
     const updatedResale = await prisma.resales.update({
       where: { id: resaleId },
       data: {
         price: price ? parseFloat(price) : resale.price,
-        quantity: quantity ? parseInt(quantity, 10) : resale.quantity
+        quantity: quantity ? parseInt(quantity, 10) : resale.quantity,
+        // Se o status foi enviado no body, grava ele. Senão, mantém o que já estava.
+        status: status ? status : resale.status 
       }
     });
 

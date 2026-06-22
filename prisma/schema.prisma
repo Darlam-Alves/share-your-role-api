@@ -16,9 +16,9 @@ model users {
   email_institutional           String?
   phone                         String
   profile_image_url             String?
-  resale_whatsapp               String?
-  resale_instagram              String?
-  resale_telegram               String?
+  resale_whatsapp               String?             @map("seller_whatsapp")
+  resale_instagram              String?             @map("seller_instagram")
+  resale_telegram               String?             @map("seller_telegram")
   password_hash                 String
   role                          user_role          @default(public)
   created_at                    DateTime           @default(now()) @db.Timestamptz(6)

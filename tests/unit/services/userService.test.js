@@ -8,7 +8,7 @@ jest.mock("bcrypt");
 const VALID_PAYLOAD = {
   name: "Ana Silva",
   phone: "11999999999",
-  password: "senha123",
+  password: "Senha@123",
   email_personal: "ana@gmail.com",
 };
 
@@ -61,6 +61,31 @@ describe("userService.createUser", () => {
       await expect(userService.createUser(payload)).rejects.toMatchObject({
         statusCode: 400,
         message: expect.stringContaining("email"),
+      });
+    });
+  });
+
+  describe("segurança da senha", () => {
+    test.each([
+      ["Senha123", "sem símbolo"],
+      ["senha@123", "sem letra maiúscula"],
+      ["SENHA@123", "sem letra minúscula"],
+      ["Senha@ab", "sem número"],
+      ["S@1a", "com menos de 8 caracteres"],
+    ])("rejeita senha %s (%s)", async (password) => {
+      await expect(
+        userService.createUser({ ...VALID_PAYLOAD, password })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining("mínimo 8 caracteres"),
+      });
+
+      expect(bcrypt.hash).not.toHaveBeenCalled();
+    });
+
+    test("aceita senha com maiúscula, minúscula, número e símbolo", async () => {
+      await expect(userService.createUser(VALID_PAYLOAD)).resolves.toMatchObject({
+        id: "uuid-abc-123",
       });
     });
   });
@@ -137,7 +162,7 @@ describe("userService.createUser", () => {
       await userService.createUser(VALID_PAYLOAD);
 
       expect(userRepository.create).not.toHaveBeenCalledWith(
-        expect.objectContaining({ password: "senha123" })
+        expect.objectContaining({ password: "Senha@123" })
       );
     });
 
@@ -152,7 +177,7 @@ describe("userService.createUser", () => {
     test("usa SALT_ROUNDS = 10", async () => {
       await userService.createUser(VALID_PAYLOAD);
 
-      expect(bcrypt.hash).toHaveBeenCalledWith("senha123", 10);
+      expect(bcrypt.hash).toHaveBeenCalledWith("Senha@123", 10);
     });
   });
 

@@ -5,6 +5,9 @@ const { sanitizeSocialHandle } = require("../utils/socialHandles");
 
 const SALT_ROUNDS = 10;
 const WHATSAPP_DIGITS_REGEX = /^\d{10,13}$/;
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
+const STRONG_PASSWORD_MESSAGE =
+  "A senha deve ter no mínimo 8 caracteres e conter letra maiúscula, letra minúscula, número e símbolo.";
 const PROFILE_IMAGE_DATA_URL_REGEX = /^data:image\/(jpeg|jpg|png|webp);base64,[a-zA-Z0-9+/]+={0,2}$/;
 const MAX_PROFILE_IMAGE_URL_LENGTH = 1_000_000;
 
@@ -131,6 +134,10 @@ async function createUser(payload) {
 
   if (!name || !phone || !password) {
     throw buildHttpError(400, "Campos obrigatorios: name, phone e password.");
+  }
+
+  if (!STRONG_PASSWORD_REGEX.test(password)) {
+    throw buildHttpError(400, STRONG_PASSWORD_MESSAGE);
   }
 
   if (!emailPersonal && !emailInstitutional) {

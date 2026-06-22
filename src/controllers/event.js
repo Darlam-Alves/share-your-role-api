@@ -240,14 +240,35 @@ async function updateEventResale(request, response) {
       return response.status(403).json({ message: "Você não tem permissão para alterar este anúncio." });
     }
 
-    // 🎯 2. ADICIONE O CAMPO NO DATA DO PRISMA:
+    const allowedStatuses = ["open", "sold", "cancelled"];
+    if (status && !allowedStatuses.includes(status)) {
+      return response.status(400).json({ message: "Status de revenda inválido." });
+    }
+
+    if (status === "open" && resale.status !== "open") {
+      const activeResale = await prisma.resales.findFirst({
+        where: {
+          event_id: resale.event_id,
+          user_id: userId,
+          status: "open",
+          NOT: { id: resaleId },
+        },
+        select: { id: true },
+      });
+
+      if (activeResale) {
+        return response.status(409).json({
+          message: "Você já possui um anúncio ativo de revenda para este evento.",
+        });
+      }
+    }
+
     const updatedResale = await prisma.resales.update({
       where: { id: resaleId },
       data: {
         price: price ? parseFloat(price) : resale.price,
         quantity: quantity ? parseInt(quantity, 10) : resale.quantity,
-        // Se o status foi enviado no body, grava ele. Senão, mantém o que já estava.
-        status: status ? status : resale.status 
+        status: status || resale.status,
       }
     });
 

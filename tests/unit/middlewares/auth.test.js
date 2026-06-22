@@ -1,4 +1,4 @@
-const { authenticate, requireRole } = require("../../../src/middlewares/auth");
+const { authenticate, authenticateIfPresent, requireRole } = require("../../../src/middlewares/auth");
 const jwt = require("jsonwebtoken");
 
 jest.mock("jsonwebtoken");
@@ -70,6 +70,38 @@ describe("authenticate", () => {
     expect(req.user).toEqual(payload);
     expect(next).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+describe("authenticateIfPresent", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.JWT_SECRET = "test-secret";
+  });
+
+  test("permite acesso público quando o token não é enviado", () => {
+    const req = makeReq({ headers: {} });
+    const res = makeRes();
+    const next = jest.fn();
+
+    authenticateIfPresent(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(req.user).toBeUndefined();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  test("atribui o usuário quando um token válido é enviado", () => {
+    const payload = { id: "uuid-user-123", role: "public" };
+    jwt.verify.mockReturnValue(payload);
+    const req = makeReq({ headers: { authorization: "Bearer token-valido" } });
+    const res = makeRes();
+    const next = jest.fn();
+
+    authenticateIfPresent(req, res, next);
+
+    expect(req.user).toEqual(payload);
+    expect(next).toHaveBeenCalled();
   });
 });
 

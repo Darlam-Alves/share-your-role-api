@@ -18,6 +18,14 @@ function authenticate(req, res, next) {
   }
 }
 
+function authenticateIfPresent(req, res, next) {
+  if (!req.headers.authorization) {
+    return next();
+  }
+
+  return authenticate(req, res, next);
+}
+
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -27,4 +35,4 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { authenticate, requireRole };
+module.exports = { authenticate, authenticateIfPresent, requireRole };
